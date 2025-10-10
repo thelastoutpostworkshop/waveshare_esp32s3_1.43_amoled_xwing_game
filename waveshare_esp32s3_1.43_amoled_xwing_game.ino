@@ -510,8 +510,8 @@ static void updateSpritePosition()
     sample.gx = g_imu.gx;
     sample.gy = g_imu.gy;
 
-    g_spriteVelX += -sample.ay * ACCEL_SCALE - sample.gy * GYRO_SCALE;
-    g_spriteVelY += sample.ax * ACCEL_SCALE + sample.gx * GYRO_SCALE;
+    g_spriteVelX += sample.ax * ACCEL_SCALE + sample.gx * GYRO_SCALE;
+    g_spriteVelY += sample.ay * ACCEL_SCALE + sample.gy * GYRO_SCALE;
 
     g_spriteVelX *= DAMPING;
     g_spriteVelY *= DAMPING;
