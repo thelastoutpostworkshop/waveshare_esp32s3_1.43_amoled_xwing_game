@@ -83,7 +83,7 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-#define ACCEL_SCALE 3.5f                       // Increase to make pitch/roll acceleration move the ship faster
+#define ACCEL_SCALE 1.5f                       // Increase to make pitch/roll acceleration move the ship faster
 #define GYRO_SCALE 0.05f                       // Increase if you want rotation (gyro) to have stronger influence
 #define DAMPING 0.92f                          // Lower values add more drag; raise toward 1.0 for smoother gliding
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
