@@ -75,13 +75,15 @@ void setup()
     }
     // Create the task to read QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
     xTaskCreatePinnedToCore(imu_task, "imu", 4096, NULL, 2, NULL, 0);
+
+    showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
+    delay(3000);
+    showJpegAt(100, 0, target_top, sizeof(target_top), 0);
 }
 
 void loop()
 {
-    // Display the JPEG stored in FLASH at the desired screen position
-    showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
-    delay(10000); // repeat every 10 seconds
+    delay(1); 
 }
 
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions)
@@ -101,21 +103,11 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
     Serial.println("Successfully opened JPEG image");
     Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n",
                   jpeg.getWidth(), jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
-    if (jpeg.hasThumb())
-    {
-        Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
-    }
 
     jpeg.setPixelType(RGB565_BIG_ENDIAN);
-    long start = micros();
     bool decoded = jpeg.decode(x, y, decodeOptions);
-    long elapsed = micros() - start;
 
-    if (decoded)
-    {
-        Serial.printf("Successfully decoded image in %d us\n", (int)elapsed);
-    }
-    else
+    if (!decoded)
     {
         printJpegError("Failed to decode JPEG image", jpeg.getLastError());
     }
@@ -212,5 +204,3 @@ static void printJpegError(const char *context, int error)
     const char *description = jpegErrorToString(error);
     Serial.printf("%s (error %d: %s)\n", context, error, description);
 }
-
-
