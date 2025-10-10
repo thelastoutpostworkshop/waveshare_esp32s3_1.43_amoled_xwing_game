@@ -88,7 +88,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define ACCEL_SCALE 1.5f                       // Tilt acceleration scale
 #define GYRO_SCALE 0.05f                       // Gyro rotation influence
 #define DAMPING 0.92f                          // 1.0 = glide forever, 0.0 = stop instantly
-#define XWING_CENTER_LEEWAY 40                 // Bold sprite radius in pixels
+#define XWING_TARGET_DIFFICULTY 30             // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 #define XWING_DIRECTION_MODE 0
@@ -672,7 +672,12 @@ static void renderFrame()
         if (dy < 0)
             dy = -dy;
 
-        if (g_xWingBoldSprite && dx <= XWING_CENTER_LEEWAY && dy <= XWING_CENTER_LEEWAY)
+        const int baseLeeway = 80;
+        int leeway = baseLeeway - XWING_TARGET_DIFFICULTY;
+        if (leeway < 0)
+            leeway = 0;
+
+        if (g_xWingBoldSprite && dx <= leeway && dy <= leeway)
         {
             activeSprite = g_xWingBoldSprite;
         }
@@ -869,3 +874,4 @@ static void printJpegError(const char *context, int error)
     const char *description = jpegErrorToString(error);
     Serial.printf("%s (error %d: %s)\n", context, error, description);
 }
+
