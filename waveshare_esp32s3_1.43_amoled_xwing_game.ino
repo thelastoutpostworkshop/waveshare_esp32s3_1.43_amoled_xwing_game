@@ -11,6 +11,8 @@
 #include "esp_heap_caps.h"
 
 #include "images/x_wing_small.h"
+#include "images/target_bottom.h"
+#include "images/target_top.h"
 
 Amoled amoled; // Main object for the display
 
@@ -45,9 +47,9 @@ static void updateSpritePosition();
 static void renderFrame();
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-#define ACCEL_SCALE 3.5f  // Increase to make pitch/roll acceleration move the ship faster
-#define GYRO_SCALE 0.05f  // Increase if you want rotation (gyro) to have stronger influence
-#define DAMPING 0.92f     // Lower values add more drag; raise toward 1.0 for smoother gliding
+#define ACCEL_SCALE 3.5f // Increase to make pitch/roll acceleration move the ship faster
+#define GYRO_SCALE 0.05f // Increase if you want rotation (gyro) to have stronger influence
+#define DAMPING 0.92f    // Lower values add more drag; raise toward 1.0 for smoother gliding
 
 enum class JpegRenderMode
 {
@@ -128,6 +130,8 @@ void setup()
         Serial.println("ERROR: Failed to allocate framebuffers; animation disabled");
     }
 
+    showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
+    showJpegAt(300, 0, target_top, sizeof(target_top), 0);
     g_spriteReady = loadXWingSprite();
     if (!g_spriteReady)
     {
