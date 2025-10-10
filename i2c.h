@@ -2,8 +2,8 @@
 //
 #ifndef I2C_H
 #define I2C_H
+#include <stdint.h>
 #include "board_config.h"
-#include "driver/i2c.h"
 
 #ifdef __cplusplus
 extern "C" {

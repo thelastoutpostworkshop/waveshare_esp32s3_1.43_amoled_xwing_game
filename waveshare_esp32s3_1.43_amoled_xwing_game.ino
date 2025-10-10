@@ -3,7 +3,10 @@
 
 #include "JPEGDEC.h"
 #include <SD_MMC.h>   // Included with the Espressif Arduino Core
-#include "amoled.h"   // Display driver, included in the project
+#include <Arduino_GFX_Library.h>
+#include <cstring>
+#include "esp_log.h"
+#include "board_config.h"
 #include "FT3168.h"   // Capacitive Touch functions, included in the project
 #include "qmi8658c.h" // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
 #include "freertos/FreeRTOS.h"
@@ -14,7 +17,39 @@
 #include "images/target_bottom.h"
 #include "images/target_top.h"
 #include "images/x_wing_small.h"
-Amoled amoled; // Main object for the display
+static inline uint16_t toBE565(uint16_t color);
+
+class PSRAMCanvas16 : public Arduino_Canvas
+{
+public:
+    PSRAMCanvas16(int16_t w, int16_t h)
+        : Arduino_Canvas(w, h, nullptr) {}
+
+    ~PSRAMCanvas16()
+    {
+        if (_framebuffer)
+        {
+            heap_caps_free(_framebuffer);
+            _framebuffer = nullptr;
+        }
+    }
+
+    bool begin(int32_t speed = GFX_NOT_DEFINED) override
+    {
+        (void)speed;
+        if (!_framebuffer)
+        {
+            size_t bytes = static_cast<size_t>(_width) * static_cast<size_t>(_height) * sizeof(uint16_t);
+            _framebuffer = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+            if (!_framebuffer)
+            {
+                return false;
+            }
+            memset(_framebuffer, 0, bytes);
+        }
+        return true;
+    }
+};
 
 JPEGDEC jpeg;
 
@@ -37,7 +72,6 @@ volatile ImuData g_imu;
 static void touchTask(void *pvParameter);
 static const char *jpegErrorToString(int error);
 static void printJpegError(const char *context, int error);
-static inline uint16_t toBE565(uint16_t color);
 static bool initFramebuffers();
 static void clearBuffer(uint16_t *buffer, uint16_t colorBE);
 static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
@@ -47,6 +81,8 @@ static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void updateSpritePosition();
 static void renderFrame();
+static void drawHud();
+static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
 #define ACCEL_SCALE 3.5f // Increase to make pitch/roll acceleration move the ship faster
@@ -73,6 +109,11 @@ struct JpegRenderContext
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
+static Arduino_DataBus *g_displayBus = nullptr;
+static Arduino_CO5300 *g_display = nullptr;
+static constexpr uint16_t COLOR_BLACK = 0x0000;
+static constexpr uint16_t COLOR_WHITE = 0xFFFF;
+
 static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
 static int g_frontBufferIndex = 0;
 static bool g_framebuffersReady = false;
@@ -80,6 +121,7 @@ static uint16_t g_backgroundColorBE = 0;
 static uint16_t *g_staticBackground = nullptr;
 static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
+static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 static uint16_t *g_xWingSprite = nullptr;
 static int g_xWingWidth = 0;
@@ -98,6 +140,8 @@ void setup()
     Serial.begin(115200);
     delay(1000); // Give time to the serial port to show initial messages printed on the serial port upon reset
 
+    esp_log_level_set("i2c.master", ESP_LOG_NONE);
+
     if (!psramFound())
     {
         Serial.println("ERROR: PSRAM not detected. Enable PSRAM first.");
@@ -107,17 +151,38 @@ void setup()
         }
     }
 
-    // Display initialization
-    if (!amoled.begin())
+    g_displayBus = new Arduino_ESP32QSPI(PIN_NUM_LCD_CS,
+                                         PIN_NUM_LCD_PCLK,
+                                         PIN_NUM_LCD_DATA0,
+                                         PIN_NUM_LCD_DATA1,
+                                         PIN_NUM_LCD_DATA2,
+                                         PIN_NUM_LCD_DATA3);
+    if (!g_displayBus)
+    {
+        Serial.println("ERROR: Failed to allocate display bus");
+        while (true)
+        {
+            delay(1000);
+        }
+    }
+    g_display = new Arduino_CO5300(g_displayBus,
+                                   PIN_NUM_LCD_RST,
+                                   0,
+                                   DISPLAY_WIDTH,
+                                   DISPLAY_HEIGHT,
+                                   6, 0, 6, 0);
+
+    if (!g_display || !g_display->begin())
     {
         Serial.println("Display initialization failed!");
         while (true)
         {
-            /* no need to continue */
+            delay(1000);
         }
     }
-    amoled.fillScreen(AMOLED_COLOR_BLACK);
-    Serial.printf("Display controller name is %s (id=%d)\n", amoled.name(), amoled.ID());
+    g_display->setRotation(0);
+    g_display->fillScreen(0x0000);
+    Serial.println("Display initialized (Arduino_GFX CO5300)");
 
     Touch_Init(); // Init the Touch Controller
 
@@ -155,6 +220,18 @@ void setup()
             Serial.println("WARNING: Static background not available; falling back to solid color");
         }
     }
+
+    if (!g_textCanvas.begin())
+    {
+        Serial.println("ERROR: Failed to allocate text canvas");
+    }
+    else
+    {
+        g_textCanvas.setTextWrap(false);
+        g_textCanvas.setTextSize(1);
+        g_textCanvas.setRotation(0);
+    }
+
     g_spriteReady = loadXWingSprite();
     if (!g_spriteReady)
     {
@@ -278,7 +355,7 @@ static bool initFramebuffers()
         }
     }
 
-    g_backgroundColorBE = toBE565(AMOLED_COLOR_BLACK);
+    g_backgroundColorBE = toBE565(COLOR_BLACK);
     for (int i = 0; i < 2; ++i)
     {
         clearBuffer(g_frameBuffers[i], g_backgroundColorBE);
@@ -473,6 +550,45 @@ static void updateSpritePosition()
     g_spriteDrawY = static_cast<int>(g_spritePosY + 0.5f);
 }
 
+static void drawHud()
+{
+    if (!g_textCanvas.getFramebuffer())
+        return;
+
+    g_textCanvas.fillScreen(COLOR_BLACK);
+    g_textCanvas.setCursor(12, 20);
+    g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
+    g_textCanvas.print("Hello, pilot!");
+}
+
+static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor)
+{
+    if (!dest)
+        return;
+
+    uint16_t *src = canvas.getFramebuffer();
+    if (!src)
+        return;
+
+    const int16_t w = canvas.width();
+    const int16_t h = canvas.height();
+    if (w <= 0 || h <= 0)
+        return;
+
+    for (int16_t y = 0; y < h; ++y)
+    {
+        uint16_t *srcRow = src + static_cast<size_t>(y) * w;
+        uint16_t *dstRow = dest + static_cast<size_t>(y) * DISPLAY_WIDTH;
+        for (int16_t x = 0; x < w; ++x)
+        {
+            uint16_t color = srcRow[x];
+            if (color == transparentColor)
+                continue;
+            dstRow[x] = toBE565(color);
+        }
+    }
+}
+
 static void renderFrame()
 {
     if (!g_framebuffersReady)
@@ -494,13 +610,17 @@ static void renderFrame()
         blitSprite(backBuffer, DISPLAY_WIDTH, g_spriteDrawX, g_spriteDrawY, g_xWingSprite, g_xWingWidth, g_xWingHeight);
     }
 
-    if (amoled.drawBitmap(0, 0, backBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+    drawHud();
+    blitCanvasToBuffer(g_textCanvas, backBuffer);
+
+    if (g_display)
     {
+        g_display->draw16bitBeRGBBitmap(0, 0, backBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
         g_frontBufferIndex = backBufferIndex;
     }
     else
     {
-        Serial.println("ERROR: Failed to push framebuffer to panel");
+        Serial.println("ERROR: Display not available");
     }
 }
 
@@ -548,12 +668,14 @@ int jpegDrawCallback(JPEGDRAW *pDraw)
 
     if (g_jpegContext.mode == JpegRenderMode::Panel)
     {
-        bool ok = amoled.drawBitmap(pDraw->x,
-                                    pDraw->y,
-                                    const_cast<uint16_t *>(src),
-                                    pDraw->iWidth,
-                                    pDraw->iHeight);
-        return ok ? 1 : 0;
+        if (!g_display)
+            return 0;
+        g_display->draw16bitBeRGBBitmap(pDraw->x,
+                                        pDraw->y,
+                                        const_cast<uint16_t *>(src),
+                                        pDraw->iWidth,
+                                        pDraw->iHeight);
+        return 1;
     }
     else if (g_jpegContext.mode == JpegRenderMode::Buffer)
     {
