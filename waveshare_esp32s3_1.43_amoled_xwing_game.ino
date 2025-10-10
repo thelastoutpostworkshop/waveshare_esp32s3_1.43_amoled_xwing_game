@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
+#include "esp32-hal-psram.h"
 
 #include "images/target_bottom.h"
 #include "images/target_top.h"
@@ -96,6 +97,15 @@ void setup()
 {
     Serial.begin(115200);
     delay(1000); // Give time to the serial port to show initial messages printed on the serial port upon reset
+
+    if (!psramFound())
+    {
+        Serial.println("ERROR: PSRAM not detected. Enable PSRAM first.");
+        while (true)
+        {
+            delay(1000);
+        }
+    }
 
     // Display initialization
     if (!amoled.begin())
