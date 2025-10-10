@@ -9,7 +9,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "images/top_target.h"
+
 Amoled amoled; // Main object for the display
+
+JPEGDEC jpeg;
 
 // Touch global variables
 volatile uint16_t touchX = 0;
@@ -71,6 +75,55 @@ void setup()
 
 void loop()
 {
+    long lTime;
+char szTemp[64];
+
+  // Open a large JPEG image stored in FLASH memory (included as thumb_test.h)
+  // This image is 12 megapixels, but has a 320x240 embedded thumbnail in it
+  if (jpeg.openFLASH((uint8_t *)top_target, sizeof(top_target), jpegDrawCallback))
+  {
+    Serial.println("Successfully opened JPEG image");
+    Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n", jpeg.getWidth(),
+      jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
+    if (jpeg.hasThumb())
+       Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
+    jpeg.setPixelType(RGB565_BIG_ENDIAN); // The SPI LCD wants the 16-bit pixels in big-endian order
+    lTime = micros();
+    // Draw the thumbnail image in the middle of the display (upper left corner = 120,100) at 1/4 scale
+    if (jpeg.decode(120,100,JPEG_SCALE_QUARTER | JPEG_EXIF_THUMBNAIL))
+    {
+      lTime = micros() - lTime;
+      sprintf(szTemp, "Successfully decoded image in %d us", (int)lTime);
+      Serial.println(szTemp);
+    }
+    jpeg.close();
+  }
+  
+  delay(10000); // repeat every 10 seconds
+}
+
+// Callback function to draw a JPEG
+int jpegDrawCallback(JPEGDRAW *pDraw)
+{
+    unsigned long s = millis();
+
+    uint8_t *src = (uint8_t *)pDraw->pPixels;
+
+    for (int row = 0; row < pDraw->iHeight; row++)
+    {
+        // Compute destination offset for this row in the frame_buf
+        int dstY = pDraw->y + row;
+        if (dstY >= DISPLAY_HEIGHT)
+            break;
+
+        uint8_t *dst = frame_buf + (dstY * DISPLAY_WIDTH + pDraw->x) * 2;
+
+        // Copy a single scanline (width in pixels × 2 bytes)
+        memcpy(dst, src + row * pDraw->iWidth * 2, pDraw->iWidth * 2);
+    }
+    total_show_video += millis() - s;
+
+    return 1;
 }
 
 // Task to read the values of QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
