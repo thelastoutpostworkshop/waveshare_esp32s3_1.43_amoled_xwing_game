@@ -8,9 +8,8 @@
 #include "qmi8658c.h" // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
 
-#include "images/target_bottom.h"
-#include "images/target_top.h"
 #include "images/x_wing_small.h"
 
 Amoled amoled; // Main object for the display
@@ -36,7 +35,49 @@ volatile ImuData g_imu;
 static void touchTask(void *pvParameter);
 static const char *jpegErrorToString(int error);
 static void printJpegError(const char *context, int error);
+static inline uint16_t toBE565(uint16_t color);
+static bool initFramebuffers();
+static void clearBuffer(uint16_t *buffer, uint16_t colorBE);
+static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *sprite, int spriteW, int spriteH);
+static bool loadXWingSprite();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
+static void updateSpritePosition();
+static void renderFrame();
+int jpegDrawCallback(JPEGDRAW *pDraw);
+
+enum class JpegRenderMode
+{
+    Panel,
+    Buffer
+};
+
+struct JpegRenderContext
+{
+    JpegRenderMode mode;
+    uint16_t *buffer;
+    int pitch;
+    int originX;
+    int originY;
+};
+
+static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0};
+
+static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
+static int g_frontBufferIndex = 0;
+static bool g_framebuffersReady = false;
+static uint16_t g_backgroundColorBE = 0;
+
+static uint16_t *g_xWingSprite = nullptr;
+static int g_xWingWidth = 0;
+static int g_xWingHeight = 0;
+static bool g_spriteReady = false;
+
+static float g_spritePosX = 0.0f;
+static float g_spritePosY = 0.0f;
+static float g_spriteVelX = 0.0f;
+static float g_spriteVelY = 0.0f;
+static int g_spriteDrawX = 0;
+static int g_spriteDrawY = 0;
 
 void setup()
 {
@@ -77,14 +118,252 @@ void setup()
     // Create the task to read QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
     xTaskCreatePinnedToCore(imu_task, "imu", 4096, NULL, 2, NULL, 0);
 
-    showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
-    showJpegAt(300, 0, target_top, sizeof(target_top), 0);
-    showJpegAt(233, 0, x_wing_small, sizeof(x_wing_small), 0);
+    g_framebuffersReady = initFramebuffers();
+    if (!g_framebuffersReady)
+    {
+        Serial.println("ERROR: Failed to allocate framebuffers; animation disabled");
+    }
+
+    g_spriteReady = loadXWingSprite();
+    if (!g_spriteReady)
+    {
+        Serial.println("ERROR: Failed to load X-Wing sprite");
+    }
+
+    if (g_framebuffersReady && g_spriteReady)
+    {
+        renderFrame();
+    }
 }
 
 void loop()
 {
-    delay(1); 
+    if (!g_framebuffersReady || !g_spriteReady)
+    {
+        delay(50);
+        return;
+    }
+
+    updateSpritePosition();
+    renderFrame();
+    delay(16);
+}
+
+static inline uint16_t toBE565(uint16_t color)
+{
+    return static_cast<uint16_t>((color << 8) | (color >> 8));
+}
+
+static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
+{
+    if (!buffer)
+        return;
+
+    const size_t pixelCount = static_cast<size_t>(DISPLAY_WIDTH) * static_cast<size_t>(DISPLAY_HEIGHT);
+    const uint32_t pattern = (static_cast<uint32_t>(colorBE) << 16) | colorBE;
+    uint32_t *dst32 = reinterpret_cast<uint32_t *>(buffer);
+    const size_t quadCount = pixelCount / 2;
+
+    for (size_t i = 0; i < quadCount; ++i)
+    {
+        dst32[i] = pattern;
+    }
+
+    if (pixelCount & 1)
+    {
+        buffer[pixelCount - 1] = colorBE;
+    }
+}
+
+static bool initFramebuffers()
+{
+    const size_t bytes = static_cast<size_t>(DISPLAY_WIDTH) * static_cast<size_t>(DISPLAY_HEIGHT) * sizeof(uint16_t);
+
+    for (int i = 0; i < 2; ++i)
+    {
+        g_frameBuffers[i] = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        if (!g_frameBuffers[i])
+        {
+            Serial.printf("Failed to allocate framebuffer %d (%u bytes)\n", i, static_cast<unsigned int>(bytes));
+            for (int j = 0; j < i; ++j)
+            {
+                heap_caps_free(g_frameBuffers[j]);
+                g_frameBuffers[j] = nullptr;
+            }
+            return false;
+        }
+    }
+
+    g_backgroundColorBE = toBE565(AMOLED_COLOR_BLACK);
+    for (int i = 0; i < 2; ++i)
+    {
+        clearBuffer(g_frameBuffers[i], g_backgroundColorBE);
+    }
+    g_frontBufferIndex = 0;
+    return true;
+}
+
+static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *sprite, int spriteW, int spriteH)
+{
+    if (!dst || !sprite || spriteW <= 0 || spriteH <= 0)
+        return;
+
+    const int startX = max(0, x);
+    const int startY = max(0, y);
+    const int endX = min(DISPLAY_WIDTH, x + spriteW);
+    const int endY = min(DISPLAY_HEIGHT, y + spriteH);
+
+    if (startX >= endX || startY >= endY)
+        return;
+
+    const int srcOffsetX = startX - x;
+    const int srcOffsetY = startY - y;
+    const int rowWidth = endX - startX;
+
+    const uint16_t *srcRow = sprite + srcOffsetY * spriteW + srcOffsetX;
+    uint16_t *dstRow = dst + startY * pitch + startX;
+
+    for (int row = startY; row < endY; ++row)
+    {
+        memcpy(dstRow, srcRow, rowWidth * sizeof(uint16_t));
+        dstRow += pitch;
+        srcRow += spriteW;
+    }
+}
+
+static bool loadXWingSprite()
+{
+    if (!jpeg.openFLASH(const_cast<uint8_t *>(x_wing_small), sizeof(x_wing_small), jpegDrawCallback))
+    {
+        printJpegError("Failed to open X-Wing JPEG", jpeg.getLastError());
+        return false;
+    }
+
+    g_xWingWidth = jpeg.getWidth();
+    g_xWingHeight = jpeg.getHeight();
+
+    const size_t bytes = static_cast<size_t>(g_xWingWidth) * static_cast<size_t>(g_xWingHeight) * sizeof(uint16_t);
+    uint16_t *pixels = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (!pixels)
+    {
+        Serial.println("ERROR: Failed to allocate sprite buffer");
+        jpeg.close();
+        return false;
+    }
+
+    g_jpegContext.mode = JpegRenderMode::Buffer;
+    g_jpegContext.buffer = pixels;
+    g_jpegContext.pitch = g_xWingWidth;
+    g_jpegContext.originX = 0;
+    g_jpegContext.originY = 0;
+
+    jpeg.setPixelType(RGB565_BIG_ENDIAN);
+    bool decoded = jpeg.decode(0, 0, 0);
+    int lastError = jpeg.getLastError();
+    jpeg.close();
+
+    g_jpegContext.mode = JpegRenderMode::Panel;
+    g_jpegContext.buffer = nullptr;
+    g_jpegContext.pitch = 0;
+    g_jpegContext.originX = 0;
+    g_jpegContext.originY = 0;
+
+    if (!decoded)
+    {
+        printJpegError("Failed to decode X-Wing JPEG", lastError);
+        heap_caps_free(pixels);
+        g_xWingWidth = 0;
+        g_xWingHeight = 0;
+        return false;
+    }
+
+    g_xWingSprite = pixels;
+    g_spritePosX = (DISPLAY_WIDTH - g_xWingWidth) / 2.0f;
+    g_spritePosY = (DISPLAY_HEIGHT - g_xWingHeight) / 2.0f;
+    g_spriteVelX = 0.0f;
+    g_spriteVelY = 0.0f;
+    g_spriteDrawX = static_cast<int>(g_spritePosX + 0.5f);
+    g_spriteDrawY = static_cast<int>(g_spritePosY + 0.5f);
+
+    Serial.printf("Loaded X-Wing sprite (%d x %d)\n", g_xWingWidth, g_xWingHeight);
+    return true;
+}
+
+static void updateSpritePosition()
+{
+    if (!g_spriteReady || g_xWingWidth <= 0 || g_xWingHeight <= 0)
+        return;
+
+    ImuData sample;
+    sample.ax = g_imu.ax;
+    sample.ay = g_imu.ay;
+    sample.gx = g_imu.gx;
+    sample.gy = g_imu.gy;
+
+    constexpr float ACCEL_SCALE = 3.5f;
+    constexpr float GYRO_SCALE = 0.05f;
+    constexpr float DAMPING = 0.92f;
+
+    g_spriteVelX += sample.ay * ACCEL_SCALE + sample.gy * GYRO_SCALE;
+    g_spriteVelY += -sample.ax * ACCEL_SCALE + sample.gx * GYRO_SCALE;
+
+    g_spriteVelX *= DAMPING;
+    g_spriteVelY *= DAMPING;
+
+    g_spritePosX += g_spriteVelX;
+    g_spritePosY += g_spriteVelY;
+
+    const float maxX = max(0, DISPLAY_WIDTH - g_xWingWidth);
+    const float maxY = max(0, DISPLAY_HEIGHT - g_xWingHeight);
+
+    if (g_spritePosX < 0.0f)
+    {
+        g_spritePosX = 0.0f;
+        g_spriteVelX = 0.0f;
+    }
+    else if (g_spritePosX > maxX)
+    {
+        g_spritePosX = maxX;
+        g_spriteVelX = 0.0f;
+    }
+
+    if (g_spritePosY < 0.0f)
+    {
+        g_spritePosY = 0.0f;
+        g_spriteVelY = 0.0f;
+    }
+    else if (g_spritePosY > maxY)
+    {
+        g_spritePosY = maxY;
+        g_spriteVelY = 0.0f;
+    }
+
+    g_spriteDrawX = static_cast<int>(g_spritePosX + 0.5f);
+    g_spriteDrawY = static_cast<int>(g_spritePosY + 0.5f);
+}
+
+static void renderFrame()
+{
+    if (!g_framebuffersReady)
+        return;
+
+    const int backBufferIndex = 1 - g_frontBufferIndex;
+    uint16_t *backBuffer = g_frameBuffers[backBufferIndex];
+    clearBuffer(backBuffer, g_backgroundColorBE);
+
+    if (g_spriteReady && g_xWingSprite)
+    {
+        blitSprite(backBuffer, DISPLAY_WIDTH, g_spriteDrawX, g_spriteDrawY, g_xWingSprite, g_xWingWidth, g_xWingHeight);
+    }
+
+    if (amoled.drawBitmap(0, 0, backBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+    {
+        g_frontBufferIndex = backBufferIndex;
+    }
+    else
+    {
+        Serial.println("ERROR: Failed to push framebuffer to panel");
+    }
 }
 
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions)
@@ -105,6 +384,12 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
     Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n",
                   jpeg.getWidth(), jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
 
+    g_jpegContext.mode = JpegRenderMode::Panel;
+    g_jpegContext.buffer = nullptr;
+    g_jpegContext.pitch = 0;
+    g_jpegContext.originX = 0;
+    g_jpegContext.originY = 0;
+
     jpeg.setPixelType(RGB565_BIG_ENDIAN);
     bool decoded = jpeg.decode(x, y, decodeOptions);
 
@@ -121,9 +406,34 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
 int jpegDrawCallback(JPEGDRAW *pDraw)
 {
 
-    bool ok = amoled.drawBitmap(pDraw->x, pDraw->y, pDraw->pPixels, pDraw->iWidth, pDraw->iHeight);
+    const uint16_t *src = reinterpret_cast<const uint16_t *>(pDraw->pPixels);
 
-    return ok ? 1 : 0;
+    if (g_jpegContext.mode == JpegRenderMode::Panel)
+    {
+        bool ok = amoled.drawBitmap(pDraw->x,
+                                    pDraw->y,
+                                    const_cast<uint16_t *>(src),
+                                    pDraw->iWidth,
+                                    pDraw->iHeight);
+        return ok ? 1 : 0;
+    }
+    else if (g_jpegContext.mode == JpegRenderMode::Buffer)
+    {
+        if (!g_jpegContext.buffer || g_jpegContext.pitch <= 0)
+            return 0;
+
+        const int destX = g_jpegContext.originX + pDraw->x;
+        const int destY = g_jpegContext.originY + pDraw->y;
+
+        for (int row = 0; row < pDraw->iHeight; ++row)
+        {
+            uint16_t *dstRow = g_jpegContext.buffer + (destY + row) * g_jpegContext.pitch + destX;
+            memcpy(dstRow, src + row * pDraw->iWidth, pDraw->iWidth * sizeof(uint16_t));
+        }
+        return 1;
+    }
+
+    return 0;
 }
 // Task to read the values of QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
 static void imu_task(void *arg)
