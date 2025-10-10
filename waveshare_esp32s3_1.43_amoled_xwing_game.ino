@@ -17,6 +17,8 @@
 #include "images/x_wing_bold.h"
 #include "images/x_wing_faint.h"
 
+#include "fonts/Aurebesh_Bold12pt7b.h"
+
 static inline uint16_t toBE565(uint16_t color);
 
 class PSRAMCanvas16 : public Arduino_Canvas
@@ -85,10 +87,10 @@ static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t 
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
-#define ACCEL_SCALE 1.5f                       // Tilt acceleration scale
-#define GYRO_SCALE 0.05f                       // Gyro rotation influence
-#define DAMPING 0.92f                          // 1.0 = glide forever, 0.0 = stop instantly
-#define XWING_TARGET_DIFFICULTY 30             // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
+#define ACCEL_SCALE 1.5f           // Tilt acceleration scale
+#define GYRO_SCALE 0.05f           // Gyro rotation influence
+#define DAMPING 0.92f              // 1.0 = glide forever, 0.0 = stop instantly
+#define XWING_TARGET_DIFFICULTY 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
@@ -613,6 +615,7 @@ static void drawHud()
 
     g_textCanvas.fillScreen(COLOR_BLACK);
     g_textCanvas.setCursor(10, DISPLAY_HEIGHT / 2);
+    g_textCanvas.setFont(&Aurebesh_Bold12pt7b);
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
     g_textCanvas.print("hello");
 }
@@ -875,4 +878,3 @@ static void printJpegError(const char *context, int error)
     const char *description = jpegErrorToString(error);
     Serial.printf("%s (error %d: %s)\n", context, error, description);
 }
-
