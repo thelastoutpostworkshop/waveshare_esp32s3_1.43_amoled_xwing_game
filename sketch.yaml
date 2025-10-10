@@ -4,8 +4,7 @@ profiles:
     platforms:
       - platform: esp32:esp32 (3.3.2)
         platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-    libraries:
-      - JPEGDEC (1.8.2)
+    libraries: []
     programmer: ""
     port_config:
       baudrate: "115200"
