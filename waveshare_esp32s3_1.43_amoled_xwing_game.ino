@@ -14,7 +14,7 @@
 #include "esp32-hal-psram.h"
 
 #include "images/target.h"
-#include "images/x_wing_small.h"
+#include "images/x_wing_bold.h"
 
 static inline uint16_t toBE565(uint16_t color);
 
@@ -435,7 +435,7 @@ static bool buildStaticBackground()
 
 static bool loadXWingSprite()
 {
-    if (!jpeg.openFLASH((uint8_t *)x_wing_small, sizeof(x_wing_small), jpegDrawCallback))
+    if (!jpeg.openFLASH((uint8_t *)x_wing_bold, sizeof(x_wing_bold), jpegDrawCallback))
     {
         printJpegError("Failed to open X-Wing JPEG", jpeg.getLastError());
         return false;
