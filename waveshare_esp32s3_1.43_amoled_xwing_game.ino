@@ -51,6 +51,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define ACCEL_SCALE 3.5f // Increase to make pitch/roll acceleration move the ship faster
 #define GYRO_SCALE 0.05f // Increase if you want rotation (gyro) to have stronger influence
 #define DAMPING 0.92f    // Lower values add more drag; raise toward 1.0 for smoother gliding
+#define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 
 enum class JpegRenderMode
 {
@@ -195,6 +196,16 @@ static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
     }
 }
 
+static inline bool isSpriteTransparent(uint16_t bePixel)
+{
+    uint16_t native = static_cast<uint16_t>((bePixel << 8) | (bePixel >> 8));
+    uint8_t r5 = (native >> 11) & 0x1F;
+    uint8_t g6 = (native >> 5) & 0x3F;
+    uint8_t b5 = native & 0x1F;
+    uint16_t brightness = static_cast<uint16_t>(r5 + (g6 >> 1) + b5);
+    return brightness <= SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD;
+}
+
 static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, int x, int y, const uint8_t *data, size_t size, int decodeOptions)
 {
     if (!buffer || pitch <= 0 || bufferHeight <= 0 || !data || size == 0)
@@ -283,14 +294,19 @@ static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *s
     const int srcOffsetY = startY - y;
     const int rowWidth = endX - startX;
 
-    const uint16_t *srcRow = sprite + srcOffsetY * spriteW + srcOffsetX;
-    uint16_t *dstRow = dst + startY * pitch + startX;
-
-    for (int row = startY; row < endY; ++row)
+    const int rows = endY - startY;
+    for (int row = 0; row < rows; ++row)
     {
-        memcpy(dstRow, srcRow, rowWidth * sizeof(uint16_t));
-        dstRow += pitch;
-        srcRow += spriteW;
+        const uint16_t *srcRowPtr = sprite + (srcOffsetY + row) * spriteW + srcOffsetX;
+        uint16_t *dstRowPtr = dst + (startY + row) * pitch + startX;
+        for (int col = 0; col < rowWidth; ++col)
+        {
+            uint16_t pixel = srcRowPtr[col];
+            if (!isSpriteTransparent(pixel))
+            {
+                dstRowPtr[col] = pixel;
+            }
+        }
     }
 }
 
