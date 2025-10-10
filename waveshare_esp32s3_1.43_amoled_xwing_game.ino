@@ -97,6 +97,8 @@ char szTemp[64];
       Serial.println(szTemp);
     }
     jpeg.close();
+  } else {
+    Serial.printf("Cannot open JPEG image\n");
   }
   
   delay(10000); // repeat every 10 seconds
@@ -105,27 +107,11 @@ char szTemp[64];
 // Callback function to draw a JPEG
 int jpegDrawCallback(JPEGDRAW *pDraw)
 {
-    unsigned long s = millis();
 
-    uint8_t *src = (uint8_t *)pDraw->pPixels;
+    bool ok = amoled.drawBitmap(pDraw->x, pDraw->y, pDraw->pPixels, pDraw->iWidth, pDraw->iHeight);
 
-    for (int row = 0; row < pDraw->iHeight; row++)
-    {
-        // Compute destination offset for this row in the frame_buf
-        int dstY = pDraw->y + row;
-        if (dstY >= DISPLAY_HEIGHT)
-            break;
-
-        uint8_t *dst = frame_buf + (dstY * DISPLAY_WIDTH + pDraw->x) * 2;
-
-        // Copy a single scanline (width in pixels × 2 bytes)
-        memcpy(dst, src + row * pDraw->iWidth * 2, pDraw->iWidth * 2);
-    }
-    total_show_video += millis() - s;
-
-    return 1;
+    return ok ? 1 : 0;
 }
-
 // Task to read the values of QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
 static void imu_task(void *arg)
 {
@@ -179,3 +165,4 @@ static void touchTask(void *pvParameter)
         vTaskDelay(pdMS_TO_TICKS(30));
     }
 }
+
