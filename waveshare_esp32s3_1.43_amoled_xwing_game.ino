@@ -80,8 +80,9 @@ void loop()
 
     // Open a large JPEG image stored in FLASH memory (included as thumb_test.h)
     // This image is 12 megapixels, but has a 320x240 embedded thumbnail in it
-    int jpeg_error = jpeg.openFLASH((uint8_t *)top_target, sizeof(top_target), jpegDrawCallback);
-    if (JPEG_SUCCESS)
+    jpeg.openFLASH((uint8_t *)top_target, sizeof(top_target), jpegDrawCallback);
+    int jpeg_error = jpeg.getLastError();
+    if (jpeg_error == JPEG_SUCCESS)
     {
         Serial.println("Successfully opened JPEG image");
         Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n", jpeg.getWidth(),
