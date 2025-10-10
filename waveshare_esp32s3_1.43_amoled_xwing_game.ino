@@ -84,10 +84,11 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
+// Game sensitivity adjustements
 #define ACCEL_SCALE 1.5f                       // Increase to make pitch/roll acceleration move the ship faster
 #define GYRO_SCALE 0.05f                       // Increase if you want rotation (gyro) to have stronger influence
 #define DAMPING 0.92f                          // Lower values add more drag; raise toward 1.0 for smoother gliding
-#define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
+#define XWING_CENTER_LEEWAY 40
 
 enum class JpegRenderMode
 {
@@ -106,13 +107,13 @@ struct JpegRenderContext
     int limitHeight;
 };
 
+#define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
 static Arduino_DataBus *g_displayBus = nullptr;
 static Arduino_CO5300 *g_display = nullptr;
 static constexpr uint16_t COLOR_BLACK = 0x0000;
 static constexpr uint16_t COLOR_WHITE = 0xFFFF;
-#define XWING_CENTER_LEEWAY 40
 
 static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
 static int g_frontBufferIndex = 0;
