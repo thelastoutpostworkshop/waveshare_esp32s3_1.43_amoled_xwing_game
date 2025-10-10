@@ -56,7 +56,6 @@ JPEGDEC jpeg;
 // Touch global variables
 volatile uint16_t touchX = 0;
 volatile uint16_t touchY = 0;
-volatile bool skipVideo = false;
 static TaskHandle_t touchTaskHandle = nullptr;
 
 // Global to store the latest sample read the accelerometer and gyroscope (QMI8658)
@@ -751,11 +750,6 @@ static void touchTask(void *pvParameter)
         {
             touchX = detectedX;
             touchY = detectedY;
-            if (!skipVideo)
-            {
-                skipVideo = true;
-                Serial.printf("Touch detected at (%u, %u) - skipping video\n", detectedX, detectedY);
-            }
 
             // Wait for finger release before resuming detection
             do
