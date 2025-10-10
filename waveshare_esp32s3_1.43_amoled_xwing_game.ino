@@ -110,7 +110,7 @@ void loop()
 
     // Open a large JPEG image stored in FLASH memory (included as thumb_test.h)
     // This image is 12 megapixels, but has a 320x240 embedded thumbnail in it
-    jpeg.openFLASH((uint8_t *)thumb_test, sizeof(thumb_test), jpegDrawCallback);
+    jpeg.openFLASH((uint8_t *)target_top, sizeof(target_top), jpegDrawCallback);
     int jpeg_error = jpeg.getLastError();
     if (jpeg_error == JPEG_SUCCESS)
     {
