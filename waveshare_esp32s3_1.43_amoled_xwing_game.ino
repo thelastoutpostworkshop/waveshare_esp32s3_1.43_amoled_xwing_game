@@ -85,10 +85,10 @@ static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t 
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
 // Game sensitivity adjustements
-#define ACCEL_SCALE 1.5f                       // Increase to make pitch/roll acceleration move the ship faster
-#define GYRO_SCALE 0.05f                       // Increase if you want rotation (gyro) to have stronger influence
-#define DAMPING 0.92f                          // Lower values add more drag; raise toward 1.0 for smoother gliding
-#define XWING_CENTER_LEEWAY 40
+#define ACCEL_SCALE 1.5f                       // Lower for gentler tilt control (easier), raise for sharper response (harder)
+#define GYRO_SCALE 0.05f                       // Lower to soften motion, raise to make roll/pitch more sensitive (harder)
+#define DAMPING 0.92f                          // Raise toward 1.0 for smooth drifting (easier), lower for tighter control (harder)
+#define XWING_CENTER_LEEWAY 40                 // Increase to have the x-wing targetted area larger (easier), decrease for a tighter target (harder)
 
 enum class JpegRenderMode
 {
