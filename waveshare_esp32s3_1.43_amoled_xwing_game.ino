@@ -10,7 +10,6 @@
 #include "freertos/task.h"
 
 #include "images/target_bottom.h"
-#include "images/thumb_test.h"
 
 Amoled amoled; // Main object for the display
 
@@ -36,73 +35,6 @@ static void touchTask(void *pvParameter);
 static const char *jpegErrorToString(int error);
 static void printJpegError(const char *context, int error);
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
-
-static const char *jpegErrorToString(int error)
-{
-    switch (error)
-    {
-    case JPEG_SUCCESS:
-        return "Operation successful";
-    case JPEG_INVALID_PARAMETER:
-        return "Invalid parameter";
-    case JPEG_DECODE_ERROR:
-        return "Decode error";
-    case JPEG_UNSUPPORTED_FEATURE:
-        return "Unsupported feature";
-    case JPEG_INVALID_FILE:
-        return "Invalid file";
-    case JPEG_ERROR_MEMORY:
-        return "Memory allocation failed";
-    default:
-        return "Unknown error";
-    }
-}
-
-static void printJpegError(const char *context, int error)
-{
-    const char *description = jpegErrorToString(error);
-    Serial.printf("%s (error %d: %s)\n", context, error, description);
-}
-
-static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions)
-{
-    if (!data || size == 0)
-    {
-        Serial.println("showJpegAt: invalid JPEG source");
-        return false;
-    }
-
-    if (!jpeg.openFLASH(const_cast<uint8_t *>(data), size, jpegDrawCallback))
-    {
-        printJpegError("Failed to open JPEG image", jpeg.getLastError());
-        return false;
-    }
-
-    Serial.println("Successfully opened JPEG image");
-    Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n",
-                  jpeg.getWidth(), jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
-    if (jpeg.hasThumb())
-    {
-        Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
-    }
-
-    jpeg.setPixelType(RGB565_BIG_ENDIAN);
-    long start = micros();
-    bool decoded = jpeg.decode(x, y, decodeOptions);
-    long elapsed = micros() - start;
-
-    if (decoded)
-    {
-        Serial.printf("Successfully decoded image in %d us\n", (int)elapsed);
-    }
-    else
-    {
-        printJpegError("Failed to decode JPEG image", jpeg.getLastError());
-    }
-
-    jpeg.close();
-    return decoded;
-}
 
 void setup()
 {
@@ -149,6 +81,46 @@ void loop()
     // Display the JPEG stored in FLASH at the desired screen position
     showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
     delay(10000); // repeat every 10 seconds
+}
+
+static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions)
+{
+    if (!data || size == 0)
+    {
+        Serial.println("showJpegAt: invalid JPEG source");
+        return false;
+    }
+
+    if (!jpeg.openFLASH(const_cast<uint8_t *>(data), size, jpegDrawCallback))
+    {
+        printJpegError("Failed to open JPEG image", jpeg.getLastError());
+        return false;
+    }
+
+    Serial.println("Successfully opened JPEG image");
+    Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n",
+                  jpeg.getWidth(), jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
+    if (jpeg.hasThumb())
+    {
+        Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
+    }
+
+    jpeg.setPixelType(RGB565_BIG_ENDIAN);
+    long start = micros();
+    bool decoded = jpeg.decode(x, y, decodeOptions);
+    long elapsed = micros() - start;
+
+    if (decoded)
+    {
+        Serial.printf("Successfully decoded image in %d us\n", (int)elapsed);
+    }
+    else
+    {
+        printJpegError("Failed to decode JPEG image", jpeg.getLastError());
+    }
+
+    jpeg.close();
+    return decoded;
 }
 
 // Callback function to draw a JPEG
@@ -212,3 +184,32 @@ static void touchTask(void *pvParameter)
         vTaskDelay(pdMS_TO_TICKS(30));
     }
 }
+
+static const char *jpegErrorToString(int error)
+{
+    switch (error)
+    {
+    case JPEG_SUCCESS:
+        return "Operation successful";
+    case JPEG_INVALID_PARAMETER:
+        return "Invalid parameter";
+    case JPEG_DECODE_ERROR:
+        return "Decode error";
+    case JPEG_UNSUPPORTED_FEATURE:
+        return "Unsupported feature";
+    case JPEG_INVALID_FILE:
+        return "Invalid file";
+    case JPEG_ERROR_MEMORY:
+        return "Memory allocation failed";
+    default:
+        return "Unknown error";
+    }
+}
+
+static void printJpegError(const char *context, int error)
+{
+    const char *description = jpegErrorToString(error);
+    Serial.printf("%s (error %d: %s)\n", context, error, description);
+}
+
+
