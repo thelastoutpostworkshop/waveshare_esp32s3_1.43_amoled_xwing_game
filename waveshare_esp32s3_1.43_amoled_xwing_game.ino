@@ -10,6 +10,7 @@
 #include "freertos/task.h"
 
 #include "images/target_bottom.h"
+#include "images/target_top.h"
 
 Amoled amoled; // Main object for the display
 
