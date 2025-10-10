@@ -171,7 +171,7 @@ void setup()
                                    DISPLAY_HEIGHT,
                                    6, 0, 6, 0);
 
-    if (!g_display || !g_display->begin())
+    if (!g_display || !g_display->begin(BUS_SPEED))
     {
         Serial.println("Display initialization failed!");
         while (true)
