@@ -15,6 +15,7 @@
 
 #include "images/target.h"
 #include "images/x_wing_bold.h"
+#include "images/x_wing_faint.h"
 
 static inline uint16_t toBE565(uint16_t color);
 
@@ -111,6 +112,7 @@ static Arduino_DataBus *g_displayBus = nullptr;
 static Arduino_CO5300 *g_display = nullptr;
 static constexpr uint16_t COLOR_BLACK = 0x0000;
 static constexpr uint16_t COLOR_WHITE = 0xFFFF;
+#define XWING_CENTER_LEEWAY 40
 
 static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
 static int g_frontBufferIndex = 0;
@@ -121,7 +123,8 @@ static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-static uint16_t *g_xWingSprite = nullptr;
+static uint16_t *g_xWingBoldSprite = nullptr;
+static uint16_t *g_xWingFaintSprite = nullptr;
 static int g_xWingWidth = 0;
 static int g_xWingHeight = 0;
 static bool g_spriteReady = false;
@@ -332,6 +335,76 @@ static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, in
     return true;
 }
 
+static bool decodeSprite(const uint8_t *data, size_t size, uint16_t **outPixels, int *outWidth, int *outHeight)
+{
+    if (!outPixels)
+        return false;
+
+    if (!jpeg.openFLASH((uint8_t *)data, size, jpegDrawCallback))
+    {
+        printJpegError("Failed to open sprite JPEG", jpeg.getLastError());
+        return false;
+    }
+
+    int width = jpeg.getWidth();
+    int height = jpeg.getHeight();
+
+    if (outWidth && outHeight)
+    {
+        *outWidth = width;
+        *outHeight = height;
+    }
+    else
+    {
+        if (width != g_xWingWidth || height != g_xWingHeight)
+        {
+            Serial.println("ERROR: Sprite dimensions mismatch");
+            jpeg.close();
+            return false;
+        }
+    }
+
+    size_t bytes = (size_t)width * (size_t)height * sizeof(uint16_t);
+    uint16_t *pixels = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!pixels)
+    {
+        Serial.println("ERROR: Failed to allocate sprite buffer");
+        jpeg.close();
+        return false;
+    }
+
+    g_jpegContext.mode = JpegRenderMode::Buffer;
+    g_jpegContext.buffer = pixels;
+    g_jpegContext.pitch = width;
+    g_jpegContext.originX = 0;
+    g_jpegContext.originY = 0;
+    g_jpegContext.limitWidth = width;
+    g_jpegContext.limitHeight = height;
+
+    jpeg.setPixelType(RGB565_BIG_ENDIAN);
+    bool decoded = jpeg.decode(0, 0, 0);
+    int lastError = jpeg.getLastError();
+    jpeg.close();
+
+    g_jpegContext.mode = JpegRenderMode::Panel;
+    g_jpegContext.buffer = nullptr;
+    g_jpegContext.pitch = 0;
+    g_jpegContext.originX = 0;
+    g_jpegContext.originY = 0;
+    g_jpegContext.limitWidth = 0;
+    g_jpegContext.limitHeight = 0;
+
+    if (!decoded)
+    {
+        printJpegError("Failed to decode sprite JPEG", lastError);
+        heap_caps_free(pixels);
+        return false;
+    }
+
+    *outPixels = pixels;
+    return true;
+}
+
 static bool initFramebuffers()
 {
     const size_t bytes = (size_t)DISPLAY_WIDTH * (size_t)DISPLAY_HEIGHT * sizeof(uint16_t);
@@ -435,55 +508,36 @@ static bool buildStaticBackground()
 
 static bool loadXWingSprite()
 {
-    if (!jpeg.openFLASH((uint8_t *)x_wing_bold, sizeof(x_wing_bold), jpegDrawCallback))
+    if (g_xWingBoldSprite)
     {
-        printJpegError("Failed to open X-Wing JPEG", jpeg.getLastError());
-        return false;
+        heap_caps_free(g_xWingBoldSprite);
+        g_xWingBoldSprite = nullptr;
+    }
+    if (g_xWingFaintSprite)
+    {
+        heap_caps_free(g_xWingFaintSprite);
+        g_xWingFaintSprite = nullptr;
     }
 
-    g_xWingWidth = jpeg.getWidth();
-    g_xWingHeight = jpeg.getHeight();
-
-    const size_t bytes = (size_t)g_xWingWidth * (size_t)g_xWingHeight * sizeof(uint16_t);
-    uint16_t *pixels = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!pixels)
+    if (!decodeSprite(x_wing_bold, sizeof(x_wing_bold), &g_xWingBoldSprite, &g_xWingWidth, &g_xWingHeight))
     {
-        Serial.println("ERROR: Failed to allocate sprite buffer");
-        jpeg.close();
-        return false;
-    }
-
-    g_jpegContext.mode = JpegRenderMode::Buffer;
-    g_jpegContext.buffer = pixels;
-    g_jpegContext.pitch = g_xWingWidth;
-    g_jpegContext.originX = 0;
-    g_jpegContext.originY = 0;
-    g_jpegContext.limitWidth = g_xWingWidth;
-    g_jpegContext.limitHeight = g_xWingHeight;
-
-    jpeg.setPixelType(RGB565_BIG_ENDIAN);
-    bool decoded = jpeg.decode(0, 0, 0);
-    int lastError = jpeg.getLastError();
-    jpeg.close();
-
-    g_jpegContext.mode = JpegRenderMode::Panel;
-    g_jpegContext.buffer = nullptr;
-    g_jpegContext.pitch = 0;
-    g_jpegContext.originX = 0;
-    g_jpegContext.originY = 0;
-    g_jpegContext.limitWidth = 0;
-    g_jpegContext.limitHeight = 0;
-
-    if (!decoded)
-    {
-        printJpegError("Failed to decode X-Wing JPEG", lastError);
-        heap_caps_free(pixels);
         g_xWingWidth = 0;
         g_xWingHeight = 0;
         return false;
     }
 
-    g_xWingSprite = pixels;
+    if (!decodeSprite(x_wing_faint, sizeof(x_wing_faint), &g_xWingFaintSprite, nullptr, nullptr))
+    {
+        if (g_xWingBoldSprite)
+        {
+            heap_caps_free(g_xWingBoldSprite);
+            g_xWingBoldSprite = nullptr;
+        }
+        g_xWingWidth = 0;
+        g_xWingHeight = 0;
+        return false;
+    }
+
     g_spritePosX = (DISPLAY_WIDTH - g_xWingWidth) / 2.0f;
     g_spritePosY = (DISPLAY_HEIGHT - g_xWingHeight) / 2.0f;
     g_spriteVelX = 0.0f;
@@ -491,7 +545,7 @@ static bool loadXWingSprite()
     g_spriteDrawX = (int)(g_spritePosX + 0.5f);
     g_spriteDrawY = (int)(g_spritePosY + 0.5f);
 
-    Serial.printf("Loaded X-Wing sprite (%d x %d)\n", g_xWingWidth, g_xWingHeight);
+    Serial.printf("Loaded X-Wing sprites (%d x %d)\n", g_xWingWidth, g_xWingHeight);
     return true;
 }
 
@@ -599,9 +653,31 @@ static void renderFrame()
         clearBuffer(backBuffer, g_backgroundColorBE);
     }
 
-    if (g_spriteReady && g_xWingSprite)
+    uint16_t *activeSprite = nullptr;
+    if (g_spriteReady && g_xWingWidth > 0 && g_xWingHeight > 0)
     {
-        blitSprite(backBuffer, DISPLAY_WIDTH, g_spriteDrawX, g_spriteDrawY, g_xWingSprite, g_xWingWidth, g_xWingHeight);
+        int centerX = g_spriteDrawX + g_xWingWidth / 2;
+        int centerY = g_spriteDrawY + g_xWingHeight / 2;
+        int dx = centerX - DISPLAY_WIDTH / 2;
+        if (dx < 0)
+            dx = -dx;
+        int dy = centerY - DISPLAY_HEIGHT / 2;
+        if (dy < 0)
+            dy = -dy;
+
+        if (g_xWingBoldSprite && dx <= XWING_CENTER_LEEWAY && dy <= XWING_CENTER_LEEWAY)
+        {
+            activeSprite = g_xWingBoldSprite;
+        }
+        else if (g_xWingFaintSprite)
+        {
+            activeSprite = g_xWingFaintSprite;
+        }
+    }
+
+    if (activeSprite)
+    {
+        blitSprite(backBuffer, DISPLAY_WIDTH, g_spriteDrawX, g_spriteDrawY, activeSprite, g_xWingWidth, g_xWingHeight);
     }
 
     drawHud();
