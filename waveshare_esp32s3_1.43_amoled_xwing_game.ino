@@ -105,9 +105,6 @@ void setup()
 
 void loop()
 {
-    long lTime;
-    char szTemp[64];
-
     // Open a large JPEG image stored in FLASH memory (included as thumb_test.h)
     // This image is 12 megapixels, but has a 320x240 embedded thumbnail in it
     jpeg.openFLASH((uint8_t *)target_top, sizeof(target_top), jpegDrawCallback);
@@ -117,16 +114,11 @@ void loop()
         Serial.println("Successfully opened JPEG image");
         Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n", jpeg.getWidth(),
                       jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
-        if (jpeg.hasThumb())
-            Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
         jpeg.setPixelType(RGB565_BIG_ENDIAN); // The SPI LCD wants the 16-bit pixels in big-endian order
-        lTime = micros();
         // Draw the thumbnail image in the middle of the display (upper left corner = 120,100) at 1/4 scale
-        if (jpeg.decode(0, 0, 0))
+        if (!jpeg.decode(0, 0, 0))
         {
-            lTime = micros() - lTime;
-            sprintf(szTemp, "Successfully decoded image in %d us", (int)lTime);
-            Serial.println(szTemp);
+            Serial.println("Error decoding the JPG image");
         }
         jpeg.close();
     }
