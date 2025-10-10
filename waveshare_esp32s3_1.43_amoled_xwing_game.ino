@@ -45,6 +45,10 @@ static void updateSpritePosition();
 static void renderFrame();
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
+#define ACCEL_SCALE 3.5f  // Increase to make pitch/roll acceleration move the ship faster
+#define GYRO_SCALE 0.05f  // Increase if you want rotation (gyro) to have stronger influence
+#define DAMPING 0.92f     // Lower values add more drag; raise toward 1.0 for smoother gliding
+
 enum class JpegRenderMode
 {
     Panel,
@@ -299,10 +303,6 @@ static void updateSpritePosition()
     sample.ay = g_imu.ay;
     sample.gx = g_imu.gx;
     sample.gy = g_imu.gy;
-
-    constexpr float ACCEL_SCALE = 3.5f;
-    constexpr float GYRO_SCALE = 0.05f;
-    constexpr float DAMPING = 0.92f;
 
     g_spriteVelX += sample.ay * ACCEL_SCALE + sample.gy * GYRO_SCALE;
     g_spriteVelY += -sample.ax * ACCEL_SCALE + sample.gx * GYRO_SCALE;
