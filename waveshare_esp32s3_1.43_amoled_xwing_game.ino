@@ -91,7 +91,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define XWING_TARGET_DIFFICULTY 30             // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
-#define XWING_DIRECTION_MODE 0
+#define XWING_DIRECTION_MODE 1
 
 enum class JpegRenderMode
 {
