@@ -2,7 +2,6 @@
 // Use board "ESP32 Dev Module" (last tested on v3.3.2)
 
 #include "JPEGDEC.h"
-#include <SD_MMC.h>   // Included with the Espressif Arduino Core
 #include <Arduino_GFX_Library.h>
 #include <cstring>
 #include "esp_log.h"
@@ -39,8 +38,8 @@ public:
         (void)speed;
         if (!_framebuffer)
         {
-            size_t bytes = static_cast<size_t>(_width) * static_cast<size_t>(_height) * sizeof(uint16_t);
-            _framebuffer = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+            size_t bytes = _width * _height * sizeof(uint16_t);
+            _framebuffer = (uint16_t *)(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
             if (!_framebuffer)
             {
                 return false;
@@ -84,9 +83,9 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-#define ACCEL_SCALE 3.5f // Increase to make pitch/roll acceleration move the ship faster
-#define GYRO_SCALE 0.05f // Increase if you want rotation (gyro) to have stronger influence
-#define DAMPING 0.92f    // Lower values add more drag; raise toward 1.0 for smoother gliding
+#define ACCEL_SCALE 3.5f                       // Increase to make pitch/roll acceleration move the ship faster
+#define GYRO_SCALE 0.05f                       // Increase if you want rotation (gyro) to have stronger influence
+#define DAMPING 0.92f                          // Lower values add more drag; raise toward 1.0 for smoother gliding
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 
 enum class JpegRenderMode
@@ -258,7 +257,7 @@ void loop()
 
 static inline uint16_t toBE565(uint16_t color)
 {
-    return static_cast<uint16_t>((color << 8) | (color >> 8));
+    return (uint16_t)((color << 8) | (color >> 8));
 }
 
 static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
@@ -266,8 +265,8 @@ static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
     if (!buffer)
         return;
 
-    const size_t pixelCount = static_cast<size_t>(DISPLAY_WIDTH) * static_cast<size_t>(DISPLAY_HEIGHT);
-    const uint32_t pattern = (static_cast<uint32_t>(colorBE) << 16) | colorBE;
+    const size_t pixelCount = (size_t)DISPLAY_WIDTH * (size_t)DISPLAY_HEIGHT;
+    const uint32_t pattern = ((uint32_t)colorBE << 16) | colorBE;
     uint32_t *dst32 = reinterpret_cast<uint32_t *>(buffer);
     const size_t quadCount = pixelCount / 2;
 
@@ -284,11 +283,11 @@ static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
 
 static inline bool isSpriteTransparent(uint16_t bePixel)
 {
-    uint16_t native = static_cast<uint16_t>((bePixel << 8) | (bePixel >> 8));
+    uint16_t native = (uint16_t)((bePixel << 8) | (bePixel >> 8));
     uint8_t r5 = (native >> 11) & 0x1F;
     uint8_t g6 = (native >> 5) & 0x3F;
     uint8_t b5 = native & 0x1F;
-    uint16_t brightness = static_cast<uint16_t>(r5 + (g6 >> 1) + b5);
+    uint16_t brightness = (uint16_t)(r5 + (g6 >> 1) + b5);
     return brightness <= SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD;
 }
 
@@ -297,7 +296,7 @@ static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, in
     if (!buffer || pitch <= 0 || bufferHeight <= 0 || !data || size == 0)
         return false;
 
-    if (!jpeg.openFLASH(const_cast<uint8_t *>(data), size, jpegDrawCallback))
+    if (!jpeg.openFLASH((uint8_t *)data, size, jpegDrawCallback))
     {
         printJpegError("Failed to open JPEG image", jpeg.getLastError());
         return false;
@@ -335,15 +334,15 @@ static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, in
 
 static bool initFramebuffers()
 {
-    const size_t bytes = static_cast<size_t>(DISPLAY_WIDTH) * static_cast<size_t>(DISPLAY_HEIGHT) * sizeof(uint16_t);
+    const size_t bytes = (size_t)DISPLAY_WIDTH * (size_t)DISPLAY_HEIGHT * sizeof(uint16_t);
     g_framebufferBytes = bytes;
 
     for (int i = 0; i < 2; ++i)
     {
-        g_frameBuffers[i] = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        g_frameBuffers[i] = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!g_frameBuffers[i])
         {
-            Serial.printf("Failed to allocate framebuffer %d (%u bytes)\n", i, static_cast<unsigned int>(bytes));
+            Serial.printf("Failed to allocate framebuffer %d (%u bytes)\n", i, (unsigned int)bytes);
             for (int j = 0; j < i; ++j)
             {
                 heap_caps_free(g_frameBuffers[j]);
@@ -403,7 +402,7 @@ static bool buildStaticBackground()
 
     if (!g_staticBackground)
     {
-        g_staticBackground = static_cast<uint16_t *>(heap_caps_malloc(g_framebufferBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        g_staticBackground = (uint16_t *)heap_caps_malloc(g_framebufferBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!g_staticBackground)
         {
             Serial.println("ERROR: Failed to allocate static background buffer");
@@ -440,7 +439,7 @@ static bool buildStaticBackground()
 
 static bool loadXWingSprite()
 {
-    if (!jpeg.openFLASH(const_cast<uint8_t *>(x_wing_small), sizeof(x_wing_small), jpegDrawCallback))
+    if (!jpeg.openFLASH((uint8_t *)x_wing_small, sizeof(x_wing_small), jpegDrawCallback))
     {
         printJpegError("Failed to open X-Wing JPEG", jpeg.getLastError());
         return false;
@@ -449,8 +448,8 @@ static bool loadXWingSprite()
     g_xWingWidth = jpeg.getWidth();
     g_xWingHeight = jpeg.getHeight();
 
-    const size_t bytes = static_cast<size_t>(g_xWingWidth) * static_cast<size_t>(g_xWingHeight) * sizeof(uint16_t);
-    uint16_t *pixels = static_cast<uint16_t *>(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    const size_t bytes = (size_t)g_xWingWidth * (size_t)g_xWingHeight * sizeof(uint16_t);
+    uint16_t *pixels = (uint16_t *)heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!pixels)
     {
         Serial.println("ERROR: Failed to allocate sprite buffer");
@@ -493,8 +492,8 @@ static bool loadXWingSprite()
     g_spritePosY = (DISPLAY_HEIGHT - g_xWingHeight) / 2.0f;
     g_spriteVelX = 0.0f;
     g_spriteVelY = 0.0f;
-    g_spriteDrawX = static_cast<int>(g_spritePosX + 0.5f);
-    g_spriteDrawY = static_cast<int>(g_spritePosY + 0.5f);
+    g_spriteDrawX = (int)(g_spritePosX + 0.5f);
+    g_spriteDrawY = (int)(g_spritePosY + 0.5f);
 
     Serial.printf("Loaded X-Wing sprite (%d x %d)\n", g_xWingWidth, g_xWingHeight);
     return true;
@@ -545,8 +544,8 @@ static void updateSpritePosition()
         g_spriteVelY = 0.0f;
     }
 
-    g_spriteDrawX = static_cast<int>(g_spritePosX + 0.5f);
-    g_spriteDrawY = static_cast<int>(g_spritePosY + 0.5f);
+    g_spriteDrawX = (int)(g_spritePosX + 0.5f);
+    g_spriteDrawY = (int)(g_spritePosY + 0.5f);
 }
 
 static void drawHud()
@@ -576,8 +575,8 @@ static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t 
 
     for (int16_t y = 0; y < h; ++y)
     {
-        uint16_t *srcRow = src + static_cast<size_t>(y) * w;
-        uint16_t *dstRow = dest + static_cast<size_t>(y) * DISPLAY_WIDTH;
+        uint16_t *srcRow = src + (size_t)y * w;
+        uint16_t *dstRow = dest + (size_t)y * DISPLAY_WIDTH;
         for (int16_t x = 0; x < w; ++x)
         {
             uint16_t color = srcRow[x];
@@ -631,7 +630,7 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
         return false;
     }
 
-    if (!jpeg.openFLASH(const_cast<uint8_t *>(data), size, jpegDrawCallback))
+    if (!jpeg.openFLASH((uint8_t *)data, size, jpegDrawCallback))
     {
         printJpegError("Failed to open JPEG image", jpeg.getLastError());
         return false;
@@ -663,7 +662,7 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
 int jpegDrawCallback(JPEGDRAW *pDraw)
 {
 
-    const uint16_t *src = reinterpret_cast<const uint16_t *>(pDraw->pPixels);
+    const uint16_t *src = pDraw->pPixels;
 
     if (g_jpegContext.mode == JpegRenderMode::Panel)
     {
@@ -671,7 +670,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw)
             return 0;
         g_display->draw16bitBeRGBBitmap(pDraw->x,
                                         pDraw->y,
-                                        const_cast<uint16_t *>(src),
+                                        (uint16_t *)src,
                                         pDraw->iWidth,
                                         pDraw->iHeight);
         return 1;

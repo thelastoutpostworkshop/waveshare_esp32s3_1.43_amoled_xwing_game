@@ -24,7 +24,7 @@ uint8_t I2C_read_buff(uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len)
   if (err)
     return err;
 
-  uint8_t count = Wire.requestFrom(static_cast<int>(addr), static_cast<int>(len));
+  uint8_t count = Wire.requestFrom((int)addr, (int)len);
   if (count != len)
     return 1;
 
@@ -51,7 +51,7 @@ uint8_t I2C_master_write_read_device(uint8_t addr, uint8_t *writeBuf, uint8_t wr
 
   if (readLen && readBuf)
   {
-    uint8_t count = Wire.requestFrom(static_cast<int>(addr), static_cast<int>(readLen));
+    uint8_t count = Wire.requestFrom((int)addr, (int)readLen);
     if (count != readLen)
       return 1;
     for (uint8_t i = 0; i < readLen; ++i)
