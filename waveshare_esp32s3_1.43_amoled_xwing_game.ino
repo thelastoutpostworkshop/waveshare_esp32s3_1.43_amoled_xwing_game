@@ -29,7 +29,7 @@ typedef struct
     float temp;
 } ImuData;
 volatile ImuData g_imu;
-#define READ_SAMPLE_INTERVAL_MS 50     // Interval in ms to read a sample from the QMI8658
+#define READ_SAMPLE_INTERVAL_MS 50 // Interval in ms to read a sample from the QMI8658
 
 static void touchTask(void *pvParameter);
 
@@ -76,32 +76,35 @@ void setup()
 void loop()
 {
     long lTime;
-char szTemp[64];
+    char szTemp[64];
 
-  // Open a large JPEG image stored in FLASH memory (included as thumb_test.h)
-  // This image is 12 megapixels, but has a 320x240 embedded thumbnail in it
-  if (jpeg.openFLASH((uint8_t *)top_target, sizeof(top_target), jpegDrawCallback))
-  {
-    Serial.println("Successfully opened JPEG image");
-    Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n", jpeg.getWidth(),
-      jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
-    if (jpeg.hasThumb())
-       Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
-    jpeg.setPixelType(RGB565_BIG_ENDIAN); // The SPI LCD wants the 16-bit pixels in big-endian order
-    lTime = micros();
-    // Draw the thumbnail image in the middle of the display (upper left corner = 120,100) at 1/4 scale
-    if (jpeg.decode(120,100,JPEG_SCALE_QUARTER | JPEG_EXIF_THUMBNAIL))
+    // Open a large JPEG image stored in FLASH memory (included as thumb_test.h)
+    // This image is 12 megapixels, but has a 320x240 embedded thumbnail in it
+    int jpeg_error = jpeg.openFLASH((uint8_t *)top_target, sizeof(top_target), jpegDrawCallback);
+    if (JPEG_SUCCESS)
     {
-      lTime = micros() - lTime;
-      sprintf(szTemp, "Successfully decoded image in %d us", (int)lTime);
-      Serial.println(szTemp);
+        Serial.println("Successfully opened JPEG image");
+        Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n", jpeg.getWidth(),
+                      jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
+        if (jpeg.hasThumb())
+            Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
+        jpeg.setPixelType(RGB565_BIG_ENDIAN); // The SPI LCD wants the 16-bit pixels in big-endian order
+        lTime = micros();
+        // Draw the thumbnail image in the middle of the display (upper left corner = 120,100) at 1/4 scale
+        if (jpeg.decode(120, 100, JPEG_SCALE_QUARTER | JPEG_EXIF_THUMBNAIL))
+        {
+            lTime = micros() - lTime;
+            sprintf(szTemp, "Successfully decoded image in %d us", (int)lTime);
+            Serial.println(szTemp);
+        }
+        jpeg.close();
     }
-    jpeg.close();
-  } else {
-    Serial.printf("Cannot open JPEG image\n");
-  }
-  
-  delay(10000); // repeat every 10 seconds
+    else
+    {
+        Serial.printf("Cannot open JPEG image, error=%d\n",jpeg_error);
+    }
+
+    delay(10000); // repeat every 10 seconds
 }
 
 // Callback function to draw a JPEG
@@ -165,4 +168,3 @@ static void touchTask(void *pvParameter)
         vTaskDelay(pdMS_TO_TICKS(30));
     }
 }
-
