@@ -413,11 +413,11 @@ static bool buildStaticBackground()
     clearBuffer(g_staticBackground, g_backgroundColorBE);
 
     bool ok = true;
-    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, target_bottom, sizeof(target_bottom), 0))
+    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 300, target_bottom, sizeof(target_bottom), 0))
     {
         ok = false;
     }
-    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 300, 0, target_top, sizeof(target_top), 0))
+    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, target_top, sizeof(target_top), 0))
     {
         ok = false;
     }
