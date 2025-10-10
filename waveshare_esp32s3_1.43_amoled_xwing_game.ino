@@ -1,6 +1,7 @@
 // Tutorial :
 // Use board "ESP32 Dev Module" (last tested on v3.3.2)
 
+#include "JPEGDEC.h"
 #include <SD_MMC.h>   // Included with the Espressif Arduino Core
 #include "amoled.h"   // Display driver, included in the project
 #include "FT3168.h"   // Capacitive Touch functions, included in the project
