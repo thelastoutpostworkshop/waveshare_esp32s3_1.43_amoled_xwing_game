@@ -36,7 +36,7 @@ static void touchTask(void *pvParameter);
 void setup()
 {
     Serial.begin(115200);
-    delay(4000); // Give time to the serial port to show initial messages printed on the serial port upon reset
+    delay(1000); // Give time to the serial port to show initial messages printed on the serial port upon reset
 
     // Display initialization
     if (!amoled.begin())
