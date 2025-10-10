@@ -32,6 +32,35 @@ volatile ImuData g_imu;
 #define READ_SAMPLE_INTERVAL_MS 50 // Interval in ms to read a sample from the QMI8658
 
 static void touchTask(void *pvParameter);
+static const char *jpegErrorToString(int error);
+static void printJpegError(int error);
+
+static const char *jpegErrorToString(int error)
+{
+    switch (error)
+    {
+    case JPEG_SUCCESS:
+        return "Operation successful";
+    case JPEG_INVALID_PARAMETER:
+        return "Invalid parameter";
+    case JPEG_DECODE_ERROR:
+        return "Decode error";
+    case JPEG_UNSUPPORTED_FEATURE:
+        return "Unsupported feature";
+    case JPEG_INVALID_FILE:
+        return "Invalid file";
+    case JPEG_ERROR_MEMORY:
+        return "Memory allocation failed";
+    default:
+        return "Unknown error";
+    }
+}
+
+static void printJpegError(int error)
+{
+    const char *description = jpegErrorToString(error);
+    Serial.printf("Cannot open JPEG image (error %d: %s)\n", error, description);
+}
 
 void setup()
 {
@@ -102,7 +131,7 @@ void loop()
     }
     else
     {
-        Serial.printf("Cannot open JPEG image, error=%d\n",jpeg_error);
+        printJpegError(jpeg_error);
     }
 
     delay(10000); // repeat every 10 seconds
