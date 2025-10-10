@@ -34,7 +34,8 @@ volatile ImuData g_imu;
 
 static void touchTask(void *pvParameter);
 static const char *jpegErrorToString(int error);
-static void printJpegError(int error);
+static void printJpegError(const char *context, int error);
+static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 
 static const char *jpegErrorToString(int error)
 {
@@ -57,10 +58,50 @@ static const char *jpegErrorToString(int error)
     }
 }
 
-static void printJpegError(int error)
+static void printJpegError(const char *context, int error)
 {
     const char *description = jpegErrorToString(error);
-    Serial.printf("Cannot open JPEG image (error %d: %s)\n", error, description);
+    Serial.printf("%s (error %d: %s)\n", context, error, description);
+}
+
+static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions)
+{
+    if (!data || size == 0)
+    {
+        Serial.println("showJpegAt: invalid JPEG source");
+        return false;
+    }
+
+    if (!jpeg.openFLASH(const_cast<uint8_t *>(data), size, jpegDrawCallback))
+    {
+        printJpegError("Failed to open JPEG image", jpeg.getLastError());
+        return false;
+    }
+
+    Serial.println("Successfully opened JPEG image");
+    Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n",
+                  jpeg.getWidth(), jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
+    if (jpeg.hasThumb())
+    {
+        Serial.printf("Thumbnail present: %d x %d\n", jpeg.getThumbWidth(), jpeg.getThumbHeight());
+    }
+
+    jpeg.setPixelType(RGB565_BIG_ENDIAN);
+    long start = micros();
+    bool decoded = jpeg.decode(x, y, decodeOptions);
+    long elapsed = micros() - start;
+
+    if (decoded)
+    {
+        Serial.printf("Successfully decoded image in %d us\n", (int)elapsed);
+    }
+    else
+    {
+        printJpegError("Failed to decode JPEG image", jpeg.getLastError());
+    }
+
+    jpeg.close();
+    return decoded;
 }
 
 void setup()
@@ -105,28 +146,8 @@ void setup()
 
 void loop()
 {
-    // Open a large JPEG image stored in FLASH memory (included as thumb_test.h)
-    // This image is 12 megapixels, but has a 320x240 embedded thumbnail in it
-    jpeg.openFLASH((uint8_t *)target_top, sizeof(target_top), jpegDrawCallback);
-    int jpeg_error = jpeg.getLastError();
-    if (jpeg_error == JPEG_SUCCESS)
-    {
-        Serial.println("Successfully opened JPEG image");
-        Serial.printf("Image size: %d x %d, orientation: %d, bpp: %d\n", jpeg.getWidth(),
-                      jpeg.getHeight(), jpeg.getOrientation(), jpeg.getBpp());
-        jpeg.setPixelType(RGB565_BIG_ENDIAN); // The SPI LCD wants the 16-bit pixels in big-endian order
-        // Draw the thumbnail image in the middle of the display (upper left corner = 120,100) at 1/4 scale
-        if (!jpeg.decode(0, 0, 0))
-        {
-            Serial.println("Error decoding the JPG image");
-        }
-        jpeg.close();
-    }
-    else
-    {
-        printJpegError(jpeg_error);
-    }
-
+    // Display the JPEG stored in FLASH at the desired screen position
+    showJpegAt(0, 0, target_top, sizeof(target_top), 0);
     delay(10000); // repeat every 10 seconds
 }
 
