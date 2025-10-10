@@ -554,9 +554,9 @@ static void drawHud()
         return;
 
     g_textCanvas.fillScreen(COLOR_BLACK);
-    g_textCanvas.setCursor(12, 20);
+    g_textCanvas.setCursor(10, DISPLAY_HEIGHT / 2);
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
-    g_textCanvas.print("Hello, pilot!");
+    g_textCanvas.print("hello");
 }
 
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor)
