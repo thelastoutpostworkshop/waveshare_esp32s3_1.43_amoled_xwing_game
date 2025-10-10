@@ -11,6 +11,7 @@
 
 #include "images/target_bottom.h"
 #include "images/target_top.h"
+#include "images/x_wing_small.h"
 
 Amoled amoled; // Main object for the display
 
@@ -77,8 +78,8 @@ void setup()
     xTaskCreatePinnedToCore(imu_task, "imu", 4096, NULL, 2, NULL, 0);
 
     showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
-    delay(3000);
     showJpegAt(300, 0, target_top, sizeof(target_top), 0);
+    showJpegAt(233, 0, x_wing_small, sizeof(x_wing_small), 0);
 }
 
 void loop()
