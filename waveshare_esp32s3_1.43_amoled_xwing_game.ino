@@ -10,10 +10,9 @@
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
 
-#include "images/x_wing_small.h"
 #include "images/target_bottom.h"
 #include "images/target_top.h"
-
+#include "images/x_wing_small.h"
 Amoled amoled; // Main object for the display
 
 JPEGDEC jpeg;
@@ -40,8 +39,10 @@ static void printJpegError(const char *context, int error);
 static inline uint16_t toBE565(uint16_t color);
 static bool initFramebuffers();
 static void clearBuffer(uint16_t *buffer, uint16_t colorBE);
+static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *sprite, int spriteW, int spriteH);
 static bool loadXWingSprite();
+static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void updateSpritePosition();
 static void renderFrame();
@@ -64,14 +65,19 @@ struct JpegRenderContext
     int pitch;
     int originX;
     int originY;
+    int limitWidth;
+    int limitHeight;
 };
 
-static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0};
+static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
 static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
 static int g_frontBufferIndex = 0;
 static bool g_framebuffersReady = false;
 static uint16_t g_backgroundColorBE = 0;
+static uint16_t *g_staticBackground = nullptr;
+static bool g_backgroundReady = false;
+static size_t g_framebufferBytes = 0;
 
 static uint16_t *g_xWingSprite = nullptr;
 static int g_xWingWidth = 0;
@@ -130,8 +136,14 @@ void setup()
         Serial.println("ERROR: Failed to allocate framebuffers; animation disabled");
     }
 
-    showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
-    showJpegAt(300, 0, target_top, sizeof(target_top), 0);
+    if (g_framebuffersReady)
+    {
+        g_backgroundReady = buildStaticBackground();
+        if (!g_backgroundReady)
+        {
+            Serial.println("WARNING: Static background not available; falling back to solid color");
+        }
+    }
     g_spriteReady = loadXWingSprite();
     if (!g_spriteReady)
     {
@@ -183,9 +195,51 @@ static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
     }
 }
 
+static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, int x, int y, const uint8_t *data, size_t size, int decodeOptions)
+{
+    if (!buffer || pitch <= 0 || bufferHeight <= 0 || !data || size == 0)
+        return false;
+
+    if (!jpeg.openFLASH(const_cast<uint8_t *>(data), size, jpegDrawCallback))
+    {
+        printJpegError("Failed to open JPEG image", jpeg.getLastError());
+        return false;
+    }
+
+    g_jpegContext.mode = JpegRenderMode::Buffer;
+    g_jpegContext.buffer = buffer;
+    g_jpegContext.pitch = pitch;
+    g_jpegContext.originX = x;
+    g_jpegContext.originY = y;
+    g_jpegContext.limitWidth = pitch;
+    g_jpegContext.limitHeight = bufferHeight;
+
+    jpeg.setPixelType(RGB565_BIG_ENDIAN);
+    bool decoded = jpeg.decode(0, 0, decodeOptions);
+    int lastError = jpeg.getLastError();
+    jpeg.close();
+
+    g_jpegContext.mode = JpegRenderMode::Panel;
+    g_jpegContext.buffer = nullptr;
+    g_jpegContext.pitch = 0;
+    g_jpegContext.originX = 0;
+    g_jpegContext.originY = 0;
+    g_jpegContext.limitWidth = 0;
+    g_jpegContext.limitHeight = 0;
+
+    if (!decoded)
+    {
+        printJpegError("Failed to decode JPEG image", lastError);
+        return false;
+    }
+
+    return true;
+}
+
 static bool initFramebuffers()
 {
     const size_t bytes = static_cast<size_t>(DISPLAY_WIDTH) * static_cast<size_t>(DISPLAY_HEIGHT) * sizeof(uint16_t);
+    g_framebufferBytes = bytes;
 
     for (int i = 0; i < 2; ++i)
     {
@@ -198,6 +252,7 @@ static bool initFramebuffers()
                 heap_caps_free(g_frameBuffers[j]);
                 g_frameBuffers[j] = nullptr;
             }
+            g_framebufferBytes = 0;
             return false;
         }
     }
@@ -239,6 +294,48 @@ static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *s
     }
 }
 
+static bool buildStaticBackground()
+{
+    if (!g_framebuffersReady || g_framebufferBytes == 0)
+        return false;
+
+    if (!g_staticBackground)
+    {
+        g_staticBackground = static_cast<uint16_t *>(heap_caps_malloc(g_framebufferBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+        if (!g_staticBackground)
+        {
+            Serial.println("ERROR: Failed to allocate static background buffer");
+            return false;
+        }
+    }
+
+    clearBuffer(g_staticBackground, g_backgroundColorBE);
+
+    bool ok = true;
+    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, target_bottom, sizeof(target_bottom), 0))
+    {
+        ok = false;
+    }
+    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 300, 0, target_top, sizeof(target_top), 0))
+    {
+        ok = false;
+    }
+
+    if (ok)
+    {
+        for (int i = 0; i < 2; ++i)
+        {
+            if (g_frameBuffers[i])
+            {
+                memcpy(g_frameBuffers[i], g_staticBackground, g_framebufferBytes);
+            }
+        }
+    }
+
+    g_backgroundReady = ok;
+    return ok;
+}
+
 static bool loadXWingSprite()
 {
     if (!jpeg.openFLASH(const_cast<uint8_t *>(x_wing_small), sizeof(x_wing_small), jpegDrawCallback))
@@ -264,6 +361,8 @@ static bool loadXWingSprite()
     g_jpegContext.pitch = g_xWingWidth;
     g_jpegContext.originX = 0;
     g_jpegContext.originY = 0;
+    g_jpegContext.limitWidth = g_xWingWidth;
+    g_jpegContext.limitHeight = g_xWingHeight;
 
     jpeg.setPixelType(RGB565_BIG_ENDIAN);
     bool decoded = jpeg.decode(0, 0, 0);
@@ -275,6 +374,8 @@ static bool loadXWingSprite()
     g_jpegContext.pitch = 0;
     g_jpegContext.originX = 0;
     g_jpegContext.originY = 0;
+    g_jpegContext.limitWidth = 0;
+    g_jpegContext.limitHeight = 0;
 
     if (!decoded)
     {
@@ -353,7 +454,14 @@ static void renderFrame()
 
     const int backBufferIndex = 1 - g_frontBufferIndex;
     uint16_t *backBuffer = g_frameBuffers[backBufferIndex];
-    clearBuffer(backBuffer, g_backgroundColorBE);
+    if (g_backgroundReady && g_staticBackground && g_framebufferBytes)
+    {
+        memcpy(backBuffer, g_staticBackground, g_framebufferBytes);
+    }
+    else
+    {
+        clearBuffer(backBuffer, g_backgroundColorBE);
+    }
 
     if (g_spriteReady && g_xWingSprite)
     {
@@ -423,16 +531,38 @@ int jpegDrawCallback(JPEGDRAW *pDraw)
     }
     else if (g_jpegContext.mode == JpegRenderMode::Buffer)
     {
-        if (!g_jpegContext.buffer || g_jpegContext.pitch <= 0)
+        if (!g_jpegContext.buffer || g_jpegContext.pitch <= 0 || g_jpegContext.limitWidth <= 0 || g_jpegContext.limitHeight <= 0)
             return 0;
 
         const int destX = g_jpegContext.originX + pDraw->x;
         const int destY = g_jpegContext.originY + pDraw->y;
 
+        const int srcWidth = pDraw->iWidth;
         for (int row = 0; row < pDraw->iHeight; ++row)
         {
-            uint16_t *dstRow = g_jpegContext.buffer + (destY + row) * g_jpegContext.pitch + destX;
-            memcpy(dstRow, src + row * pDraw->iWidth, pDraw->iWidth * sizeof(uint16_t));
+            int y = destY + row;
+            if (y < 0 || y >= g_jpegContext.limitHeight)
+                continue;
+
+            int xStart = destX;
+            int srcOffset = 0;
+            if (xStart < 0)
+            {
+                srcOffset = -xStart;
+                xStart = 0;
+            }
+
+            int xEnd = destX + srcWidth;
+            if (xEnd > g_jpegContext.limitWidth)
+                xEnd = g_jpegContext.limitWidth;
+
+            int span = xEnd - xStart;
+            if (span <= 0)
+                continue;
+
+            const uint16_t *srcRow = src + row * srcWidth + srcOffset;
+            uint16_t *dstRow = g_jpegContext.buffer + y * g_jpegContext.pitch + xStart;
+            memcpy(dstRow, srcRow, span * sizeof(uint16_t));
         }
         return 1;
     }
