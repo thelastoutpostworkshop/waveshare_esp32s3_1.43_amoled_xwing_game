@@ -78,7 +78,7 @@ void setup()
 
     showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
     delay(3000);
-    showJpegAt(100, 0, target_top, sizeof(target_top), 0);
+    showJpegAt(300, 0, target_top, sizeof(target_top), 0);
 }
 
 void loop()
