@@ -13,9 +13,9 @@
 #include "esp_heap_caps.h"
 #include "esp32-hal-psram.h"
 
-#include "images/target_bottom.h"
-#include "images/target_top.h"
+#include "images/target.h"
 #include "images/x_wing_small.h"
+
 static inline uint16_t toBE565(uint16_t color);
 
 class PSRAMCanvas16 : public Arduino_Canvas
@@ -413,11 +413,7 @@ static bool buildStaticBackground()
     clearBuffer(g_staticBackground, g_backgroundColorBE);
 
     bool ok = true;
-    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 300, target_bottom, sizeof(target_bottom), 0))
-    {
-        ok = false;
-    }
-    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, target_top, sizeof(target_top), 0))
+    if (!decodeJpegToBuffer(g_staticBackground, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, target, sizeof(target), 0))
     {
         ok = false;
     }
