@@ -84,11 +84,14 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-// Game sensitivity adjustements
-#define ACCEL_SCALE 1.5f                       // Lower for gentler tilt control (easier), raise for sharper response (harder)
-#define GYRO_SCALE 0.05f                       // Lower to soften motion, raise to make roll/pitch more sensitive (harder)
-#define DAMPING 0.92f                          // Raise toward 1.0 for smooth drifting (easier), lower for tighter control (harder)
-#define XWING_CENTER_LEEWAY 40                 // Increase to have the x-wing targetted area larger (easier), decrease for a tighter target (harder)
+// Game sensitivity adjustments (lower value = easier; higher value = harder)
+#define ACCEL_SCALE 1.5f                       // Tilt acceleration scale
+#define GYRO_SCALE 0.05f                       // Gyro rotation influence
+#define DAMPING 0.92f                          // 1.0 = glide forever, 0.0 = stop instantly
+#define XWING_CENTER_LEEWAY 40                 // Bold sprite radius in pixels
+
+// Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
+#define XWING_DIRECTION_MODE 0
 
 enum class JpegRenderMode
 {
@@ -561,8 +564,11 @@ static void updateSpritePosition()
     sample.gx = g_imu.gx;
     sample.gy = g_imu.gy;
 
-    g_spriteVelX += sample.ax * ACCEL_SCALE + sample.gx * GYRO_SCALE;
-    g_spriteVelY += sample.ay * ACCEL_SCALE + sample.gy * GYRO_SCALE;
+    int xSign = (XWING_DIRECTION_MODE == 2 || XWING_DIRECTION_MODE == 3) ? -1 : 1;
+    int ySign = (XWING_DIRECTION_MODE == 1 || XWING_DIRECTION_MODE == 3) ? -1 : 1;
+
+    g_spriteVelX += xSign * (sample.ax * ACCEL_SCALE + sample.gx * GYRO_SCALE);
+    g_spriteVelY += ySign * (sample.ay * ACCEL_SCALE + sample.gy * GYRO_SCALE);
 
     g_spriteVelX *= DAMPING;
     g_spriteVelY *= DAMPING;
