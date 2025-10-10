@@ -9,7 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "images/target_top.h"
+#include "images/target_bottom.h"
 #include "images/thumb_test.h"
 
 Amoled amoled; // Main object for the display
@@ -147,7 +147,7 @@ void setup()
 void loop()
 {
     // Display the JPEG stored in FLASH at the desired screen position
-    showJpegAt(0, 0, target_top, sizeof(target_top), 0);
+    showJpegAt(0, 0, target_bottom, sizeof(target_bottom), 0);
     delay(10000); // repeat every 10 seconds
 }
 
