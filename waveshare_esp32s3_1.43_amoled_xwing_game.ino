@@ -92,8 +92,6 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define GYRO_SCALE 0.05f            // Gyro rotation influence
 #define DAMPING 0.92f               // 1.0 = glide forever, 0.0 = stop instantly
 #define XWING_TARGET_AREA 30            // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
-#define SCORE_POS_X 10             // Horizontal position for score text
-#define SCORE_POS_Y (DISPLAY_HEIGHT / 2) // Vertical baseline for score text
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
@@ -117,6 +115,9 @@ struct JpegRenderContext
 };
 
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
+#define SCORE_POS_X 10             // Horizontal position for score text
+#define SCORE_POS_Y (DISPLAY_HEIGHT / 2) // Vertical baseline for score text
+
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
 static Arduino_DataBus *g_displayBus = nullptr;
