@@ -17,6 +17,36 @@
 #include "images/target.h"
 #include "images/x_wing_bold.h"
 #include "images/x_wing_faint.h"
+#include "images/explosion/explosion_00000.h"
+#include "images/explosion/explosion_00001.h"
+#include "images/explosion/explosion_00002.h"
+#include "images/explosion/explosion_00003.h"
+#include "images/explosion/explosion_00004.h"
+#include "images/explosion/explosion_00005.h"
+#include "images/explosion/explosion_00006.h"
+#include "images/explosion/explosion_00007.h"
+#include "images/explosion/explosion_00008.h"
+#include "images/explosion/explosion_00009.h"
+#include "images/explosion/explosion_00010.h"
+#include "images/explosion/explosion_00011.h"
+#include "images/explosion/explosion_00012.h"
+#include "images/explosion/explosion_00013.h"
+#include "images/explosion/explosion_00014.h"
+#include "images/explosion/explosion_00015.h"
+#include "images/explosion/explosion_00016.h"
+#include "images/explosion/explosion_00017.h"
+#include "images/explosion/explosion_00018.h"
+#include "images/explosion/explosion_00019.h"
+#include "images/explosion/explosion_00020.h"
+#include "images/explosion/explosion_00021.h"
+#include "images/explosion/explosion_00022.h"
+#include "images/explosion/explosion_00023.h"
+#include "images/explosion/explosion_00024.h"
+#include "images/explosion/explosion_00025.h"
+#include "images/explosion/explosion_00026.h"
+#include "images/explosion/explosion_00027.h"
+#include "images/explosion/explosion_00028.h"
+#include "images/explosion/explosion_00029.h"
 
 #include "fonts/Aurebesh_Bold20pt7b.h"
 
@@ -85,6 +115,9 @@ static void updateSpritePosition();
 static void renderFrame();
 static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
+static void startExplosionAt(int x, int y);
+static void updateExplosionPlayback();
+static bool renderExplosionFrame(uint16_t *backBuffer);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
@@ -133,6 +166,53 @@ static uint16_t *g_staticBackground = nullptr;
 static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+
+static constexpr int EXPLOSION_FRAME_COUNT = 30;
+static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50; // Controls explosion playback speed (ms per frame)
+
+struct ExplosionFrame
+{
+    const uint8_t *data;
+    size_t size;
+};
+
+static const ExplosionFrame g_explosionFrames[EXPLOSION_FRAME_COUNT] = {
+    {explosion_00000, sizeof(explosion_00000)},
+    {explosion_00001, sizeof(explosion_00001)},
+    {explosion_00002, sizeof(explosion_00002)},
+    {explosion_00003, sizeof(explosion_00003)},
+    {explosion_00004, sizeof(explosion_00004)},
+    {explosion_00005, sizeof(explosion_00005)},
+    {explosion_00006, sizeof(explosion_00006)},
+    {explosion_00007, sizeof(explosion_00007)},
+    {explosion_00008, sizeof(explosion_00008)},
+    {explosion_00009, sizeof(explosion_00009)},
+    {explosion_00010, sizeof(explosion_00010)},
+    {explosion_00011, sizeof(explosion_00011)},
+    {explosion_00012, sizeof(explosion_00012)},
+    {explosion_00013, sizeof(explosion_00013)},
+    {explosion_00014, sizeof(explosion_00014)},
+    {explosion_00015, sizeof(explosion_00015)},
+    {explosion_00016, sizeof(explosion_00016)},
+    {explosion_00017, sizeof(explosion_00017)},
+    {explosion_00018, sizeof(explosion_00018)},
+    {explosion_00019, sizeof(explosion_00019)},
+    {explosion_00020, sizeof(explosion_00020)},
+    {explosion_00021, sizeof(explosion_00021)},
+    {explosion_00022, sizeof(explosion_00022)},
+    {explosion_00023, sizeof(explosion_00023)},
+    {explosion_00024, sizeof(explosion_00024)},
+    {explosion_00025, sizeof(explosion_00025)},
+    {explosion_00026, sizeof(explosion_00026)},
+    {explosion_00027, sizeof(explosion_00027)},
+    {explosion_00028, sizeof(explosion_00028)},
+    {explosion_00029, sizeof(explosion_00029)}};
+
+static bool g_explosionActive = false;
+static int g_explosionFrameIndex = 0;
+static uint32_t g_explosionNextFrameMs = 0;
+static int g_explosionPosX = 0;
+static int g_explosionPosY = 0;
 
 static uint16_t *g_xWingBoldSprite = nullptr;
 static uint16_t *g_xWingFaintSprite = nullptr;
@@ -272,6 +352,7 @@ void loop()
         return;
     }
 
+    updateExplosionPlayback();
     updateSpritePosition();
     renderFrame();
 
@@ -293,6 +374,7 @@ void loop()
             if (dx <= g_currentLeeway && dy <= g_currentLeeway)
             {
                 ++g_score;
+                startExplosionAt(g_spriteDrawX, g_spriteDrawY);
             }
         }
     }
@@ -596,6 +678,9 @@ static void updateSpritePosition()
     if (!g_spriteReady || g_xWingWidth <= 0 || g_xWingHeight <= 0)
         return;
 
+    if (g_explosionActive)
+        return;
+
     ImuData sample;
     sample.ax = g_imu.ax;
     sample.ay = g_imu.ay;
@@ -641,6 +726,58 @@ static void updateSpritePosition()
 
     g_spriteDrawX = (int)(g_spritePosX + 0.5f);
     g_spriteDrawY = (int)(g_spritePosY + 0.5f);
+}
+
+static void startExplosionAt(int x, int y)
+{
+    g_explosionActive = true;
+    g_explosionFrameIndex = 0;
+    g_explosionPosX = x;
+    g_explosionPosY = y;
+    g_explosionNextFrameMs = millis() + EXPLOSION_FRAME_DELAY_MS;
+    g_spriteVelX = 0.0f;
+    g_spriteVelY = 0.0f;
+}
+
+static void updateExplosionPlayback()
+{
+    if (!g_explosionActive)
+        return;
+
+    uint32_t now = millis();
+    if ((int32_t)(now - g_explosionNextFrameMs) < 0)
+        return;
+
+    if (g_explosionFrameIndex + 1 < EXPLOSION_FRAME_COUNT)
+    {
+        ++g_explosionFrameIndex;
+        g_explosionNextFrameMs = now + EXPLOSION_FRAME_DELAY_MS;
+    }
+    else
+    {
+        g_explosionActive = false;
+    }
+}
+
+static bool renderExplosionFrame(uint16_t *backBuffer)
+{
+    if (!g_explosionActive || !backBuffer)
+        return false;
+
+    if (g_explosionFrameIndex < 0 || g_explosionFrameIndex >= EXPLOSION_FRAME_COUNT)
+        return false;
+
+    const ExplosionFrame &frame = g_explosionFrames[g_explosionFrameIndex];
+    if (!frame.data || frame.size == 0)
+        return false;
+
+    if (!decodeJpegToBuffer(backBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT, g_explosionPosX, g_explosionPosY, frame.data, frame.size))
+    {
+        Serial.printf("Failed to render explosion frame %d\n", g_explosionFrameIndex);
+        return false;
+    }
+
+    return true;
 }
 
 static void drawHud()
@@ -707,8 +844,9 @@ static void renderFrame()
     g_shipCenterY = DISPLAY_HEIGHT / 2;
     g_currentLeeway = 0;
 
+    const bool explosionPlaying = g_explosionActive;
     uint16_t *activeSprite = nullptr;
-    if (g_spriteReady && g_xWingWidth > 0 && g_xWingHeight > 0)
+    if (!explosionPlaying && g_spriteReady && g_xWingWidth > 0 && g_xWingHeight > 0)
     {
         int centerX = g_spriteDrawX + g_xWingWidth / 2;
         int centerY = g_spriteDrawY + g_xWingHeight / 2;
@@ -738,9 +876,13 @@ static void renderFrame()
         }
     }
 
-    g_shipInTarget = (activeSprite != nullptr && activeSprite == g_xWingBoldSprite);
+    g_shipInTarget = (!explosionPlaying && activeSprite != nullptr && activeSprite == g_xWingBoldSprite);
 
-    if (activeSprite)
+    if (explosionPlaying)
+    {
+        renderExplosionFrame(backBuffer);
+    }
+    else if (activeSprite)
     {
         blitSprite(backBuffer, DISPLAY_WIDTH, g_spriteDrawX, g_spriteDrawY, activeSprite, g_xWingWidth, g_xWingHeight);
     }
