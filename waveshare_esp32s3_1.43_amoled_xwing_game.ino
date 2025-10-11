@@ -168,7 +168,7 @@ static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 static constexpr int EXPLOSION_FRAME_COUNT = 30;
-static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50; // Controls explosion playback speed (ms per frame)
+static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 1; // Controls explosion playback speed (ms per frame)
 
 struct ExplosionFrame
 {
