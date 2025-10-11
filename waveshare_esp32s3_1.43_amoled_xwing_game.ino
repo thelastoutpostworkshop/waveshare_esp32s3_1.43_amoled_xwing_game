@@ -8,6 +8,7 @@
 #include "FT3168.h"         // Capacitive Touch functions, included in the project
 #include "qmi8658c.h"       // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
 #include "images/image_assets.h"
+#include "JpegAnimation.h"
 #include "fonts/Aurebesh_Bold20pt7b.h"
 
 
@@ -17,6 +18,7 @@
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
 #include "esp32-hal-psram.h"
+#include <cstddef>
 #include <cstring>
 #include <cstdio>
 #include <cstdint>
@@ -142,89 +144,6 @@ static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 static constexpr int EXPLOSION_FRAME_COUNT = 30;
 static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;
 
-struct JpegAnimationFrame
-{
-    const uint8_t *data;
-    size_t size;
-};
-
-class JpegAnimation
-{
-public:
-    JpegAnimation(const JpegAnimationFrame *frames, int frameCount, uint32_t frameDelayMs)
-        : m_frames(frames), m_frameCount(frameCount), m_frameDelayMs(frameDelayMs) {}
-
-    void start(int x, int y)
-    {
-        if (!m_frames || m_frameCount <= 0)
-            return;
-
-        m_active = true;
-        m_frameIndex = 0;
-        m_posX = x;
-        m_posY = y;
-        m_nextFrameMs = millis() + m_frameDelayMs;
-    }
-
-    void stop()
-    {
-        m_active = false;
-    }
-
-    void update()
-    {
-        if (!m_active)
-            return;
-
-        uint32_t now = millis();
-        if ((int32_t)(now - m_nextFrameMs) < 0)
-            return;
-
-        if (m_frameIndex + 1 < m_frameCount)
-        {
-            ++m_frameIndex;
-            m_nextFrameMs = now + m_frameDelayMs;
-        }
-        else
-        {
-            m_active = false;
-        }
-    }
-
-    bool render(uint16_t *dest, int pitch, int bufferHeight) const
-    {
-        if (!m_active || !dest || !m_frames)
-            return false;
-
-        if (m_frameIndex < 0 || m_frameIndex >= m_frameCount)
-            return false;
-
-        const JpegAnimationFrame &frame = m_frames[m_frameIndex];
-        if (!frame.data || frame.size == 0)
-            return false;
-
-        if (!decodeJpegToBuffer(dest, pitch, bufferHeight, m_posX, m_posY, frame.data, frame.size))
-        {
-            Serial.printf("Failed to decode animation frame %d\n", m_frameIndex);
-            return false;
-        }
-        return true;
-    }
-
-    bool isActive() const { return m_active; }
-    void setFrameDelay(uint32_t delayMs) { m_frameDelayMs = delayMs; }
-
-private:
-    const JpegAnimationFrame *m_frames = nullptr;
-    int m_frameCount = 0;
-    uint32_t m_frameDelayMs = 0;
-    bool m_active = false;
-    int m_frameIndex = 0;
-    int m_posX = 0;
-    int m_posY = 0;
-    uint32_t m_nextFrameMs = 0;
-};
-
 static const JpegAnimationFrame g_explosionFrames[EXPLOSION_FRAME_COUNT] = {
     {explosion_00000, sizeof(explosion_00000)},
     {explosion_00001, sizeof(explosion_00001)},
@@ -257,7 +176,7 @@ static const JpegAnimationFrame g_explosionFrames[EXPLOSION_FRAME_COUNT] = {
     {explosion_00028, sizeof(explosion_00028)},
     {explosion_00029, sizeof(explosion_00029)}};
 
-static JpegAnimation g_explosionAnimation(g_explosionFrames, EXPLOSION_FRAME_COUNT, EXPLOSION_FRAME_DELAY_MS);
+static JpegAnimation g_explosionAnimation(g_explosionFrames, EXPLOSION_FRAME_COUNT, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
 
 static uint16_t *g_xWingBoldSprite = nullptr;
 static uint16_t *g_xWingFaintSprite = nullptr;
