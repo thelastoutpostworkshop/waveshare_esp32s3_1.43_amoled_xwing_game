@@ -95,7 +95,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
-#define XWING_DIRECTION_MODE 0
+#define XWING_DIRECTION_MODE 2
 
 enum class JpegRenderMode
 {
@@ -655,7 +655,7 @@ static void drawHud()
     g_textCanvas.setCursor(SCORE_POS_X, SCORE_POS_Y);
 
     char scoreBuf[16];
-    snprintf(scoreBuf, sizeof(scoreBuf), "SCORE %lu", (unsigned long)g_score);
+    snprintf(scoreBuf, sizeof(scoreBuf), "%lu", (unsigned long)g_score);
     g_textCanvas.print(scoreBuf);
 }
 
