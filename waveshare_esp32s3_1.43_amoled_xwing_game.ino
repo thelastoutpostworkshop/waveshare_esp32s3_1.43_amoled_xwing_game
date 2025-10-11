@@ -35,8 +35,6 @@
 // You can make the game harder by choosing a mode that is unatural to you
 #define XWING_DIRECTION_MODE 2
 
-static inline uint16_t toBE565(uint16_t color);
-
 JPEGDEC jpeg;
 
 // Touch global variables
@@ -54,6 +52,7 @@ typedef struct
 volatile ImuData g_imu;
 #define READ_SAMPLE_INTERVAL_MS 50 // Interval in ms to read a sample from the QMI8658
 
+static inline uint16_t toBE565(uint16_t color);
 static void touchTask(void *pvParameter);
 static const char *jpegErrorToString(int error);
 static void printJpegError(const char *context, int error);
