@@ -1,22 +1,34 @@
 // Tutorial :
 // Use board "Waveshare ESP32-S3-Touch-AMOLED-1.43" (last tested on v3.3.2)
 
+// Main header files
 #include "JPEGDEC.h"
 #include <Arduino_GFX_Library.h>
-#include <cstring>
-#include <cstdio>
-#include "esp_log.h"
 #include "board_config.h"
-#include "FT3168.h"   // Capacitive Touch functions, included in the project
-#include "qmi8658c.h" // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
+#include "FT3168.h"         // Capacitive Touch functions, included in the project
+#include "qmi8658c.h"       // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
+#include "images/image_assets.h"
+#include "fonts/Aurebesh_Bold20pt7b.h"
+
+
+// Header files helpers
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
 #include "esp32-hal-psram.h"
 
-#include "images/image_assets.h"
 
-#include "fonts/Aurebesh_Bold20pt7b.h"
+// Game instructions
+// Game sensitivity adjustments (lower value = easier; higher value = harder)
+#define ACCEL_SCALE 1.5f            // Tilt acceleration scale
+#define GYRO_SCALE 0.05f            // Gyro rotation influence
+#define DAMPING 0.92f               // 1.0 = glide forever, 0.0 = stop instantly
+#define XWING_TARGET_AREA 30            // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
+
+// Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
+// You can make the game harder by choosing a mode that is unatural to you
+#define XWING_DIRECTION_MODE 2
 
 static inline uint16_t toBE565(uint16_t color);
 
@@ -88,15 +100,6 @@ static void updateExplosionPlayback();
 static bool renderExplosionFrame(uint16_t *backBuffer);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-// Game sensitivity adjustments (lower value = easier; higher value = harder)
-#define ACCEL_SCALE 1.5f            // Tilt acceleration scale
-#define GYRO_SCALE 0.05f            // Gyro rotation influence
-#define DAMPING 0.92f               // 1.0 = glide forever, 0.0 = stop instantly
-#define XWING_TARGET_AREA 30            // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
-
-// Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
-// You can make the game harder by choosing a mode that is unatural to you
-#define XWING_DIRECTION_MODE 2
 
 enum class JpegRenderMode
 {
