@@ -1,5 +1,5 @@
 // Tutorial :
-// Use board "ESP32 Dev Module" (last tested on v3.3.2)
+// Use board "Waveshare ESP32-S3-Touch-AMOLED-1.43" (last tested on v3.3.2)
 
 #include "JPEGDEC.h"
 #include <Arduino_GFX_Library.h>
@@ -18,7 +18,7 @@
 #include "images/x_wing_bold.h"
 #include "images/x_wing_faint.h"
 
-#include "fonts/Aurebesh_Bold12pt7b.h"
+#include "fonts/Aurebesh_Bold20pt7b.h"
 
 static inline uint16_t toBE565(uint16_t color);
 
@@ -115,8 +115,8 @@ struct JpegRenderContext
 };
 
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
-#define SCORE_POS_X 10             // Horizontal position for score text
-#define SCORE_POS_Y (DISPLAY_HEIGHT / 2) // Vertical baseline for score text
+#define SCORE_POS_X 70  // Horizontal position for score text
+#define SCORE_POS_Y 370 // Vertical baseline for score text
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -250,7 +250,6 @@ void setup()
         g_textCanvas.setTextWrap(false);
         g_textCanvas.setTextSize(1);
         g_textCanvas.setRotation(0);
-        g_textCanvas.setFont(&Aurebesh_Bold12pt7b);
     }
 
     g_spriteReady = loadXWingSprite();
@@ -650,7 +649,7 @@ static void drawHud()
         return;
 
     g_textCanvas.fillScreen(COLOR_BLACK);
-    g_textCanvas.setFont(&Aurebesh_Bold12pt7b);
+    g_textCanvas.setFont(&Aurebesh_Bold20pt7b);
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
     g_textCanvas.setCursor(SCORE_POS_X, SCORE_POS_Y);
 
