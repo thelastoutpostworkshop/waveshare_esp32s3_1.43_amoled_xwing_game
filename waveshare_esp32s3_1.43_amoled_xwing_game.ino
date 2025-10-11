@@ -2,8 +2,8 @@
 // Use board "Waveshare ESP32-S3-Touch-AMOLED-1.43" (last tested on v3.3.2)
 
 // Main header files
-#include "JPEGDEC.h"
-#include <Arduino_GFX_Library.h>
+#include "JPEGDEC.h"                // Install "JPEGDEC" library version 1.8.2
+#include <Arduino_GFX_Library.h>    // Install "GFX Library for Arduino" version 1.6.2
 #include "board_config.h"
 #include "FT3168.h"         // Capacitive Touch functions, included in the project
 #include "qmi8658c.h"       // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
