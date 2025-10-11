@@ -9,6 +9,7 @@
 #include "qmi8658c.h"       // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
 #include "images/image_assets.h"
 #include "JpegAnimation.h"
+#include "CanvasTypes.h"
 #include "fonts/Aurebesh_Bold20pt7b.h"
 
 
@@ -36,38 +37,6 @@
 #define XWING_DIRECTION_MODE 2
 
 static inline uint16_t toBE565(uint16_t color);
-
-class PSRAMCanvas16 : public Arduino_Canvas
-{
-public:
-    PSRAMCanvas16(int16_t w, int16_t h)
-        : Arduino_Canvas(w, h, nullptr) {}
-
-    ~PSRAMCanvas16()
-    {
-        if (_framebuffer)
-        {
-            heap_caps_free(_framebuffer);
-            _framebuffer = nullptr;
-        }
-    }
-
-    bool begin(int32_t speed = GFX_NOT_DEFINED) override
-    {
-        (void)speed;
-        if (!_framebuffer)
-        {
-            size_t bytes = _width * _height * sizeof(uint16_t);
-            _framebuffer = (uint16_t *)(heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-            if (!_framebuffer)
-            {
-                return false;
-            }
-            memset(_framebuffer, 0, bytes);
-        }
-        return true;
-    }
-};
 
 JPEGDEC jpeg;
 
@@ -102,23 +71,6 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-
-enum class JpegRenderMode
-{
-    Panel,
-    Buffer
-};
-
-struct JpegRenderContext
-{
-    JpegRenderMode mode;
-    uint16_t *buffer;
-    int pitch;
-    int originX;
-    int originY;
-    int limitWidth;
-    int limitHeight;
-};
 
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 #define SCORE_POS_X 70  // Horizontal position for score text
