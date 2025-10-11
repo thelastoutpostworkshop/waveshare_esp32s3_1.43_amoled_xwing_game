@@ -4,6 +4,7 @@
 #include "JPEGDEC.h"
 #include <Arduino_GFX_Library.h>
 #include <cstring>
+#include <cstdio>
 #include "esp_log.h"
 #include "board_config.h"
 #include "FT3168.h"   // Capacitive Touch functions, included in the project
@@ -87,14 +88,16 @@ static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t 
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
-#define ACCEL_SCALE 1.5f           // Tilt acceleration scale
-#define GYRO_SCALE 0.05f           // Gyro rotation influence
-#define DAMPING 0.92f              // 1.0 = glide forever, 0.0 = stop instantly
-#define XWING_TARGET_DIFFICULTY 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
+#define ACCEL_SCALE 1.5f            // Tilt acceleration scale
+#define GYRO_SCALE 0.05f            // Gyro rotation influence
+#define DAMPING 0.92f               // 1.0 = glide forever, 0.0 = stop instantly
+#define XWING_TARGET_AREA 30            // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
+#define SCORE_POS_X 10             // Horizontal position for score text
+#define SCORE_POS_Y (DISPLAY_HEIGHT / 2) // Vertical baseline for score text
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
-#define XWING_DIRECTION_MODE 1
+#define XWING_DIRECTION_MODE 0
 
 enum class JpegRenderMode
 {
@@ -135,6 +138,14 @@ static uint16_t *g_xWingFaintSprite = nullptr;
 static int g_xWingWidth = 0;
 static int g_xWingHeight = 0;
 static bool g_spriteReady = false;
+static bool g_shipInTarget = false;
+static int g_shipCenterX = DISPLAY_WIDTH / 2;
+static int g_shipCenterY = DISPLAY_HEIGHT / 2;
+static int g_currentLeeway = 0;
+static uint32_t g_score = 0;
+static volatile bool g_touchTriggered = false;
+static volatile uint16_t g_touchStartX = 0;
+static volatile uint16_t g_touchStartY = 0;
 
 static float g_spritePosX = 0.0f;
 static float g_spritePosY = 0.0f;
@@ -238,6 +249,7 @@ void setup()
         g_textCanvas.setTextWrap(false);
         g_textCanvas.setTextSize(1);
         g_textCanvas.setRotation(0);
+        g_textCanvas.setFont(&Aurebesh_Bold12pt7b);
     }
 
     g_spriteReady = loadXWingSprite();
@@ -262,6 +274,29 @@ void loop()
 
     updateSpritePosition();
     renderFrame();
+
+    if (g_touchTriggered)
+    {
+        uint16_t touchXCopy = g_touchStartX;
+        uint16_t touchYCopy = g_touchStartY;
+        g_touchTriggered = false;
+
+        if (g_shipInTarget)
+        {
+            int dx = touchXCopy - g_shipCenterX;
+            if (dx < 0)
+                dx = -dx;
+            int dy = touchYCopy - g_shipCenterY;
+            if (dy < 0)
+                dy = -dy;
+
+            if (dx <= g_currentLeeway && dy <= g_currentLeeway)
+            {
+                ++g_score;
+            }
+        }
+    }
+
     delay(16);
 }
 
@@ -614,10 +649,13 @@ static void drawHud()
         return;
 
     g_textCanvas.fillScreen(COLOR_BLACK);
-    g_textCanvas.setCursor(10, DISPLAY_HEIGHT / 2);
     g_textCanvas.setFont(&Aurebesh_Bold12pt7b);
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
-    g_textCanvas.print("hello");
+    g_textCanvas.setCursor(SCORE_POS_X, SCORE_POS_Y);
+
+    char scoreBuf[16];
+    snprintf(scoreBuf, sizeof(scoreBuf), "SCORE %lu", (unsigned long)g_score);
+    g_textCanvas.print(scoreBuf);
 }
 
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor)
@@ -664,6 +702,11 @@ static void renderFrame()
         clearBuffer(backBuffer, g_backgroundColorBE);
     }
 
+    g_shipInTarget = false;
+    g_shipCenterX = DISPLAY_WIDTH / 2;
+    g_shipCenterY = DISPLAY_HEIGHT / 2;
+    g_currentLeeway = 0;
+
     uint16_t *activeSprite = nullptr;
     if (g_spriteReady && g_xWingWidth > 0 && g_xWingHeight > 0)
     {
@@ -677,9 +720,13 @@ static void renderFrame()
             dy = -dy;
 
         const int baseLeeway = 80;
-        int leeway = baseLeeway - XWING_TARGET_DIFFICULTY;
+        int leeway = baseLeeway - XWING_TARGET_AREA;
         if (leeway < 0)
             leeway = 0;
+
+        g_shipCenterX = centerX;
+        g_shipCenterY = centerY;
+        g_currentLeeway = leeway;
 
         if (g_xWingBoldSprite && dx <= leeway && dy <= leeway)
         {
@@ -690,6 +737,8 @@ static void renderFrame()
             activeSprite = g_xWingFaintSprite;
         }
     }
+
+    g_shipInTarget = (activeSprite != nullptr && activeSprite == g_xWingBoldSprite);
 
     if (activeSprite)
     {
@@ -830,11 +879,19 @@ static void touchTask(void *pvParameter)
     (void)pvParameter;
     uint16_t detectedX = 0;
     uint16_t detectedY = 0;
+    bool touchActive = false;
 
     for (;;)
     {
         if (getTouch(&detectedX, &detectedY))
         {
+            if (!touchActive)
+            {
+                touchActive = true;
+                g_touchStartX = detectedX;
+                g_touchStartY = detectedY;
+                g_touchTriggered = true;
+            }
             touchX = detectedX;
             touchY = detectedY;
 
@@ -846,6 +903,7 @@ static void touchTask(void *pvParameter)
 
             touchX = 0;
             touchY = 0;
+            touchActive = false;
         }
 
         vTaskDelay(pdMS_TO_TICKS(30));
@@ -878,3 +936,5 @@ static void printJpegError(const char *context, int error)
     const char *description = jpegErrorToString(error);
     Serial.printf("%s (error %d: %s)\n", context, error, description);
 }
+
+
