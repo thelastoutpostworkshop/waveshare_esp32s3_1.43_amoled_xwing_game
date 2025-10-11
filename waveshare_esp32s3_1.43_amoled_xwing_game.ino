@@ -168,7 +168,6 @@ static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 static constexpr int EXPLOSION_FRAME_COUNT = 30;
-static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 1; // Controls explosion playback speed (ms per frame)
 
 struct ExplosionFrame
 {
@@ -210,7 +209,6 @@ static const ExplosionFrame g_explosionFrames[EXPLOSION_FRAME_COUNT] = {
 
 static bool g_explosionActive = false;
 static int g_explosionFrameIndex = 0;
-static uint32_t g_explosionNextFrameMs = 0;
 static int g_explosionPosX = 0;
 static int g_explosionPosY = 0;
 
@@ -734,7 +732,6 @@ static void startExplosionAt(int x, int y)
     g_explosionFrameIndex = 0;
     g_explosionPosX = x;
     g_explosionPosY = y;
-    g_explosionNextFrameMs = millis() + EXPLOSION_FRAME_DELAY_MS;
     g_spriteVelX = 0.0f;
     g_spriteVelY = 0.0f;
 }
@@ -744,14 +741,9 @@ static void updateExplosionPlayback()
     if (!g_explosionActive)
         return;
 
-    uint32_t now = millis();
-    if ((int32_t)(now - g_explosionNextFrameMs) < 0)
-        return;
-
     if (g_explosionFrameIndex + 1 < EXPLOSION_FRAME_COUNT)
     {
         ++g_explosionFrameIndex;
-        g_explosionNextFrameMs = now + EXPLOSION_FRAME_DELAY_MS;
     }
     else
     {
