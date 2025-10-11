@@ -17,6 +17,9 @@
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
 #include "esp32-hal-psram.h"
+#include <cstring>
+#include <cstdio>
+#include <cstdint>
 
 
 // Game instructions
@@ -95,9 +98,6 @@ static void updateSpritePosition();
 static void renderFrame();
 static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
-static void startExplosionAt(int x, int y);
-static void updateExplosionPlayback();
-static bool renderExplosionFrame(uint16_t *backBuffer);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
 
@@ -121,7 +121,7 @@ struct JpegRenderContext
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 #define SCORE_POS_X 70  // Horizontal position for score text
 #define SCORE_POS_Y 370 // Vertical baseline for score text
-#define XWING_VISIBLE_MARGIN 50     // Pixels guaranteed to remain on-screen when drifting off the edge
+#define XWING_VISIBLE_MARGIN 10     // Pixels guaranteed to remain on-screen when drifting off the edge
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -140,14 +140,92 @@ static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 static constexpr int EXPLOSION_FRAME_COUNT = 30;
+static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;
 
-struct ExplosionFrame
+struct JpegAnimationFrame
 {
     const uint8_t *data;
     size_t size;
 };
 
-static const ExplosionFrame g_explosionFrames[EXPLOSION_FRAME_COUNT] = {
+class JpegAnimation
+{
+public:
+    JpegAnimation(const JpegAnimationFrame *frames, int frameCount, uint32_t frameDelayMs)
+        : m_frames(frames), m_frameCount(frameCount), m_frameDelayMs(frameDelayMs) {}
+
+    void start(int x, int y)
+    {
+        if (!m_frames || m_frameCount <= 0)
+            return;
+
+        m_active = true;
+        m_frameIndex = 0;
+        m_posX = x;
+        m_posY = y;
+        m_nextFrameMs = millis() + m_frameDelayMs;
+    }
+
+    void stop()
+    {
+        m_active = false;
+    }
+
+    void update()
+    {
+        if (!m_active)
+            return;
+
+        uint32_t now = millis();
+        if ((int32_t)(now - m_nextFrameMs) < 0)
+            return;
+
+        if (m_frameIndex + 1 < m_frameCount)
+        {
+            ++m_frameIndex;
+            m_nextFrameMs = now + m_frameDelayMs;
+        }
+        else
+        {
+            m_active = false;
+        }
+    }
+
+    bool render(uint16_t *dest, int pitch, int bufferHeight) const
+    {
+        if (!m_active || !dest || !m_frames)
+            return false;
+
+        if (m_frameIndex < 0 || m_frameIndex >= m_frameCount)
+            return false;
+
+        const JpegAnimationFrame &frame = m_frames[m_frameIndex];
+        if (!frame.data || frame.size == 0)
+            return false;
+
+        if (!decodeJpegToBuffer(dest, pitch, bufferHeight, m_posX, m_posY, frame.data, frame.size))
+        {
+            Serial.printf("Failed to decode animation frame %d\n", m_frameIndex);
+            return false;
+        }
+        return true;
+    }
+
+    bool isActive() const { return m_active; }
+    void setFrameDelay(uint32_t delayMs) { m_frameDelayMs = delayMs; }
+
+private:
+    const JpegAnimationFrame *m_frames = nullptr;
+    int m_frameCount = 0;
+    uint32_t m_frameDelayMs = 0;
+    bool m_active = false;
+    int m_frameIndex = 0;
+    int m_posX = 0;
+    int m_posY = 0;
+    uint32_t m_nextFrameMs = 0;
+};
+
+static const JpegAnimationFrame g_explosionFrames[EXPLOSION_FRAME_COUNT] = {
     {explosion_00000, sizeof(explosion_00000)},
     {explosion_00001, sizeof(explosion_00001)},
     {explosion_00002, sizeof(explosion_00002)},
@@ -179,10 +257,7 @@ static const ExplosionFrame g_explosionFrames[EXPLOSION_FRAME_COUNT] = {
     {explosion_00028, sizeof(explosion_00028)},
     {explosion_00029, sizeof(explosion_00029)}};
 
-static bool g_explosionActive = false;
-static int g_explosionFrameIndex = 0;
-static int g_explosionPosX = 0;
-static int g_explosionPosY = 0;
+static JpegAnimation g_explosionAnimation(g_explosionFrames, EXPLOSION_FRAME_COUNT, EXPLOSION_FRAME_DELAY_MS);
 
 static uint16_t *g_xWingBoldSprite = nullptr;
 static uint16_t *g_xWingFaintSprite = nullptr;
@@ -322,7 +397,7 @@ void loop()
         return;
     }
 
-    updateExplosionPlayback();
+    g_explosionAnimation.update();
     updateSpritePosition();
     renderFrame();
 
@@ -344,7 +419,9 @@ void loop()
             if (dx <= g_currentLeeway && dy <= g_currentLeeway)
             {
                 ++g_score;
-                startExplosionAt(g_spriteDrawX, g_spriteDrawY);
+                g_explosionAnimation.start(g_spriteDrawX, g_spriteDrawY);
+                g_spriteVelX = 0.0f;
+                g_spriteVelY = 0.0f;
             }
         }
     }
@@ -648,7 +725,7 @@ static void updateSpritePosition()
     if (!g_spriteReady || g_xWingWidth <= 0 || g_xWingHeight <= 0)
         return;
 
-    if (g_explosionActive)
+    if (g_explosionAnimation.isActive())
         return;
 
     ImuData sample;
@@ -698,52 +775,6 @@ static void updateSpritePosition()
 
     g_spriteDrawX = (int)(g_spritePosX + 0.5f);
     g_spriteDrawY = (int)(g_spritePosY + 0.5f);
-}
-
-static void startExplosionAt(int x, int y)
-{
-    g_explosionActive = true;
-    g_explosionFrameIndex = 0;
-    g_explosionPosX = x;
-    g_explosionPosY = y;
-    g_spriteVelX = 0.0f;
-    g_spriteVelY = 0.0f;
-}
-
-static void updateExplosionPlayback()
-{
-    if (!g_explosionActive)
-        return;
-
-    if (g_explosionFrameIndex + 1 < EXPLOSION_FRAME_COUNT)
-    {
-        ++g_explosionFrameIndex;
-    }
-    else
-    {
-        g_explosionActive = false;
-    }
-}
-
-static bool renderExplosionFrame(uint16_t *backBuffer)
-{
-    if (!g_explosionActive || !backBuffer)
-        return false;
-
-    if (g_explosionFrameIndex < 0 || g_explosionFrameIndex >= EXPLOSION_FRAME_COUNT)
-        return false;
-
-    const ExplosionFrame &frame = g_explosionFrames[g_explosionFrameIndex];
-    if (!frame.data || frame.size == 0)
-        return false;
-
-    if (!decodeJpegToBuffer(backBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT, g_explosionPosX, g_explosionPosY, frame.data, frame.size))
-    {
-        Serial.printf("Failed to render explosion frame %d\n", g_explosionFrameIndex);
-        return false;
-    }
-
-    return true;
 }
 
 static void drawHud()
@@ -810,7 +841,7 @@ static void renderFrame()
     g_shipCenterY = DISPLAY_HEIGHT / 2;
     g_currentLeeway = 0;
 
-    const bool explosionPlaying = g_explosionActive;
+    const bool explosionPlaying = g_explosionAnimation.isActive();
     uint16_t *activeSprite = nullptr;
     if (!explosionPlaying && g_spriteReady && g_xWingWidth > 0 && g_xWingHeight > 0)
     {
@@ -846,7 +877,7 @@ static void renderFrame()
 
     if (explosionPlaying)
     {
-        renderExplosionFrame(backBuffer);
+        g_explosionAnimation.render(backBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
     }
     else if (activeSprite)
     {
