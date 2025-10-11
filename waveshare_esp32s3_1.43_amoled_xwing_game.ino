@@ -4,13 +4,14 @@
 // Main header files
 #include "JPEGDEC.h"                // Install "JPEGDEC" library version 1.8.2
 #include <Arduino_GFX_Library.h>    // Install "GFX Library for Arduino" version 1.6.2
-#include "board_config.h"
-#include "FT3168.h"         // Capacitive Touch functions, included in the project
-#include "qmi8658c.h"       // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
-#include "images/image_assets.h"
-#include "JpegAnimation.h"
-#include "CanvasTypes.h"
-#include "fonts/Aurebesh_Bold20pt7b.h"
+#include "board_config.h"           // Waveshare ESP32-S3-Touch-AMOLED-1.43 pins & other configurations
+#include "FT3168.h"                 // Capacitive Touch functions, included in the project
+#include "qmi8658c.h"               // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
+#include "JpegAnimation.h"          // JPEG animation class
+#include "CanvasTypes.h"            // Canvas class
+
+#include "images/image_assets.h"        // Image assets for the game
+#include "fonts/Aurebesh_Bold20pt7b.h"  // Fonts for the game
 
 
 // Header files helpers
@@ -19,11 +20,6 @@
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
 #include "esp32-hal-psram.h"
-#include <cstddef>
-#include <cstring>
-#include <cstdio>
-#include <cstdint>
-
 
 // Game instructions
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
