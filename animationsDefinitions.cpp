@@ -1,0 +1,35 @@
+#include "animationsDefinitions.h"
+
+#include "images/image_assets.h"
+
+const JpegAnimationFrame g_explosionFrames[kExplosionFrameCount] = {
+    {explosion_00000, sizeof(explosion_00000)},
+    {explosion_00001, sizeof(explosion_00001)},
+    {explosion_00002, sizeof(explosion_00002)},
+    {explosion_00003, sizeof(explosion_00003)},
+    {explosion_00004, sizeof(explosion_00004)},
+    {explosion_00005, sizeof(explosion_00005)},
+    {explosion_00006, sizeof(explosion_00006)},
+    {explosion_00007, sizeof(explosion_00007)},
+    {explosion_00008, sizeof(explosion_00008)},
+    {explosion_00009, sizeof(explosion_00009)},
+    {explosion_00010, sizeof(explosion_00010)},
+    {explosion_00011, sizeof(explosion_00011)},
+    {explosion_00012, sizeof(explosion_00012)},
+    {explosion_00013, sizeof(explosion_00013)},
+    {explosion_00014, sizeof(explosion_00014)},
+    {explosion_00015, sizeof(explosion_00015)},
+    {explosion_00016, sizeof(explosion_00016)},
+    {explosion_00017, sizeof(explosion_00017)},
+    {explosion_00018, sizeof(explosion_00018)},
+    {explosion_00019, sizeof(explosion_00019)},
+    {explosion_00020, sizeof(explosion_00020)},
+    {explosion_00021, sizeof(explosion_00021)},
+    {explosion_00022, sizeof(explosion_00022)},
+    {explosion_00023, sizeof(explosion_00023)},
+    {explosion_00024, sizeof(explosion_00024)},
+    {explosion_00025, sizeof(explosion_00025)},
+    {explosion_00026, sizeof(explosion_00026)},
+    {explosion_00027, sizeof(explosion_00027)},
+    {explosion_00028, sizeof(explosion_00028)},
+    {explosion_00029, sizeof(explosion_00029)}};
