@@ -93,6 +93,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define GYRO_SCALE 0.05f            // Gyro rotation influence
 #define DAMPING 0.92f               // 1.0 = glide forever, 0.0 = stop instantly
 #define XWING_TARGET_AREA 30            // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
+#define XWING_VISIBLE_MARGIN 10     // Pixels guaranteed to remain on-screen when drifting off the edge
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
@@ -665,12 +666,14 @@ static void updateSpritePosition()
     g_spritePosX += g_spriteVelX;
     g_spritePosY += g_spriteVelY;
 
-    const float maxX = max(0, DISPLAY_WIDTH - g_xWingWidth);
-    const float maxY = max(0, DISPLAY_HEIGHT - g_xWingHeight);
+    const float minX = -(float)max(0, g_xWingWidth - XWING_VISIBLE_MARGIN);
+    const float maxX = (float)max(0, DISPLAY_WIDTH - XWING_VISIBLE_MARGIN);
+    const float minY = -(float)max(0, g_xWingHeight - XWING_VISIBLE_MARGIN);
+    const float maxY = (float)max(0, DISPLAY_HEIGHT - XWING_VISIBLE_MARGIN);
 
-    if (g_spritePosX < 0.0f)
+    if (g_spritePosX < minX)
     {
-        g_spritePosX = 0.0f;
+        g_spritePosX = minX;
         g_spriteVelX = 0.0f;
     }
     else if (g_spritePosX > maxX)
@@ -679,9 +682,9 @@ static void updateSpritePosition()
         g_spriteVelX = 0.0f;
     }
 
-    if (g_spritePosY < 0.0f)
+    if (g_spritePosY < minY)
     {
-        g_spritePosY = 0.0f;
+        g_spritePosY = minY;
         g_spriteVelY = 0.0f;
     }
     else if (g_spritePosY > maxY)
