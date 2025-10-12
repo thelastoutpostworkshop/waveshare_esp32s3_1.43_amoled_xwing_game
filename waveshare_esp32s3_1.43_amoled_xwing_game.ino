@@ -80,7 +80,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define SCORE_POS_X 70                         // Horizontal position for score text
 #define SCORE_POS_Y 370                        // Vertical baseline for score text
 #define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
-#define BLINK_INTRO_POS_X 95
+#define BLINK_INTRO_POS_X 110
 #define BLINK_INTRO_POS_Y 375
 #define SENSOR_POS_X 360
 #define SENSOR_POS_Y 220
