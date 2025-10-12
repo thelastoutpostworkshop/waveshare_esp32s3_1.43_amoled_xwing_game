@@ -14,10 +14,11 @@
 #include "animationsDefintions.h" // Animation frame definitions
 
 // Game assets
-#include "animationsDefintions.h"       // Animation assets
-#include "images/image_assets.h"        // Image assets
-#include "fonts/Aurebesh_Bold25pt7b.h"  // Score and timer font
-#include "fonts/Aurebesh_Bold7pt7b.h"   // Sensor font
+#include "animationsDefintions.h"              // Animation assets
+#include "images/image_assets.h"               // Image assets
+#include "fonts/Aurebesh_Bold25pt7b.h"         // Score and timer font
+#include "fonts/Aurebesh_Bold7pt7b.h"          // Sensor font
+#include "fonts/square_sans_serif_728pt7b.h"   // Best score font
 
 // Header files helpers
 #include "esp_log.h"
@@ -96,11 +97,11 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
 #define INTRO_BEST_TEXT_POS_X 20
-#define INTRO_BEST_TEXT_POS_Y 420
+#define INTRO_BEST_TEXT_POS_Y 315
 #define GAME_OVER_BEST_TEXT_POS_X 20
 #define GAME_OVER_BEST_TEXT_POS_Y 420
 #define YOU_WIN_BEST_TEXT_POS_X 20
-#define YOU_WIN_BEST_TEXT_POS_Y 420
+#define YOU_WIN_BEST_TEXT_POS_Y 430
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -714,15 +715,14 @@ static void printBestTimeAt(int16_t x, int16_t y)
     if (!g_display)
         return;
 
-    g_display->setFont(&Aurebesh_Bold25pt7b);
-    g_display->setTextSize(1);
+    g_display->setFont(&square_sans_serif_728pt7b);
     g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
     g_display->setCursor(x, y);
 
     char buf[32];
     if (g_bestRoundTimeMs == 0)
     {
-        snprintf(buf, sizeof(buf), "Best: --.--s");
+        snprintf(buf, sizeof(buf), "BEST:--.--");
     }
     else
     {
@@ -734,7 +734,7 @@ static void printBestTimeAt(int16_t x, int16_t y)
             secs = 999U;
             hundredths = 99U;
         }
-        snprintf(buf, sizeof(buf), "Best: %lu.%02lus", (unsigned long)secs, (unsigned long)hundredths);
+        snprintf(buf, sizeof(buf), "BEST:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
     }
 
     g_display->print(buf);
