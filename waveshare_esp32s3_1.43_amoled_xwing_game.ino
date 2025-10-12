@@ -71,9 +71,11 @@ static bool loadXWingSprite();
 static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void playIntroAnimation();
+static void waitForTouchRelease();
+static void playBlockingAnimation(JpegAnimation &animation);
 static void playGameOverAnimation();
+static void playYouWinAnimation();
 static void startGameRound();
-static void restartGameRound();
 static int formatSensorDisplayValue(float value);
 static void updateSpritePosition();
 static void renderFrame();
@@ -113,10 +115,12 @@ static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;      // Roughly 15 FPS for intro animation
 static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80;      // Looping blink cadence
 static constexpr uint32_t GAME_OVER_FRAME_DELAY_MS = 66;  // Roughly 15 FPS for game-over animation
+static constexpr uint32_t YOU_WIN_FRAME_DELAY_MS = 66;    // Roughly 15 FPS for win animation
 static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;  // Explosion animation speed
 static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, BLINK_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_gameOverAnimation(g_gameOverFrames, kGameOverFrameCount, GAME_OVER_FRAME_DELAY_MS, decodeJpegToBuffer);
+static JpegAnimation g_youWinAnimation(g_youWinFrames, kYouWinFrameCount, YOU_WIN_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
 
 static bool g_gameActive = false;
@@ -313,7 +317,11 @@ void loop()
                 ++g_roundHits;
                 if (g_roundHits >= ROUND_TARGET_HITS)
                 {
-                    restartGameRound();
+                    g_gameActive = false;
+                    g_explosionAnimation.stop();
+                    playYouWinAnimation();
+                    startGameRound();
+                    renderFrame();
                     return;
                 }
             }
@@ -683,7 +691,15 @@ static void playIntroAnimation()
     g_touchStartY = 0;
 }
 
-static void playGameOverAnimation()
+static void waitForTouchRelease()
+{
+    while (touchX != 0 || touchY != 0)
+    {
+        delay(10);
+    }
+}
+
+static void playBlockingAnimation(JpegAnimation &animation)
 {
     if (!g_framebuffersReady || !g_display)
     {
@@ -693,20 +709,13 @@ static void playGameOverAnimation()
             delay(16);
         }
         g_touchTriggered = false;
-        while (touchX != 0 || touchY != 0)
-        {
-            delay(10);
-        }
+        waitForTouchRelease();
         g_touchStartX = 0;
         g_touchStartY = 0;
         return;
     }
 
-    while (touchX != 0 || touchY != 0)
-    {
-        delay(10);
-    }
-
+    waitForTouchRelease();
     g_touchTriggered = false;
 
     uint16_t *buffer = g_frameBuffers[g_frontBufferIndex];
@@ -717,8 +726,8 @@ static void playGameOverAnimation()
     if (!buffer)
         return;
 
-    g_gameOverAnimation.stop();
-    g_gameOverAnimation.start(0, 0);
+    animation.stop();
+    animation.start(0, 0);
 
     int lastFrame = -1;
     bool animationFinished = false;
@@ -727,18 +736,18 @@ static void playGameOverAnimation()
     {
         if (!animationFinished)
         {
-            g_gameOverAnimation.update();
-            int currentFrame = g_gameOverAnimation.currentFrame();
+            animation.update();
+            int currentFrame = animation.currentFrame();
             if (currentFrame != lastFrame)
             {
-                if (g_gameOverAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+                if (animation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
                 }
                 lastFrame = currentFrame;
             }
 
-            if (!g_gameOverAnimation.isActive())
+            if (!animation.isActive())
             {
                 animationFinished = true;
             }
@@ -747,10 +756,7 @@ static void playGameOverAnimation()
         if (!animationFinished && g_touchTriggered)
         {
             g_touchTriggered = false;
-            while (touchX != 0 || touchY != 0)
-            {
-                delay(10);
-            }
+            waitForTouchRelease();
         }
         else if (animationFinished && g_touchTriggered)
         {
@@ -761,15 +767,22 @@ static void playGameOverAnimation()
         delay(16);
     }
 
-    while (touchX != 0 || touchY != 0)
-    {
-        delay(10);
-    }
+    waitForTouchRelease();
 
     g_touchStartX = 0;
     g_touchStartY = 0;
-    g_gameOverAnimation.stop();
+    animation.stop();
     g_frontBufferIndex = 0;
+}
+
+static void playGameOverAnimation()
+{
+    playBlockingAnimation(g_gameOverAnimation);
+}
+
+static void playYouWinAnimation()
+{
+    playBlockingAnimation(g_youWinAnimation);
 }
 
 static void startGameRound()
@@ -779,13 +792,6 @@ static void startGameRound()
     g_gameActive = true;
     g_score = 0;
     g_explosionAnimation.stop();
-}
-
-static void restartGameRound()
-{
-    g_gameActive = false;
-    playIntroAnimation();
-    startGameRound();
 }
 
 static bool loadXWingSprite()
