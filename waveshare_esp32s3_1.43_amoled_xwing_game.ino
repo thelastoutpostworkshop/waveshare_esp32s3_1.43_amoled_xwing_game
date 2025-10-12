@@ -16,7 +16,8 @@
 // Game assets
 #include "animationsDefintions.h"      // Animation assets
 #include "images/image_assets.h"       // Image assets
-#include "fonts/Aurebesh_Bold25pt7b.h" // Fonts
+#include "fonts/Aurebesh_Bold25pt7b.h" // Font
+#include "fonts/Aurebesh_Bold10pt7b.h" // Font
 
 // Header files helpers
 #include "esp_log.h"
