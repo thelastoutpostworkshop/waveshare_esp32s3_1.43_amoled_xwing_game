@@ -18,7 +18,7 @@
 #include "animationsDefintions.h"      // Animation assets
 #include "images/image_assets.h"       // Image assets
 #include "fonts/Aurebesh_Bold25pt7b.h" // Font
-#include "fonts/Aurebesh_Bold7pt7b.h" // Font
+#include "fonts/Aurebesh_Bold7pt7b.h"  // Font
 
 // Header files helpers
 #include "esp_log.h"
@@ -84,8 +84,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define BLINK_INTRO_POS_Y 375
 #define SENSOR_ACCEL_POS_X 10
 #define SENSOR_ACCEL_POS_Y 40
-#define TIMER_POS_X 200
-#define TIMER_POS_Y 40
+#define TIMER_POS_X 280
+#define TIMER_POS_Y 370
 #define ROUND_TARGET_HITS 3
 #define ROUND_DURATION_MS 10000
 
@@ -818,7 +818,8 @@ static void drawHud()
     if (remainingSeconds > 999)
         remainingSeconds = 999;
     char timerText[16];
-    snprintf(timerText, sizeof(timerText), "T-%03d", remainingSeconds);
+    snprintf(timerText, sizeof(timerText), "%d", remainingSeconds);
+    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
     g_textCanvas.setCursor(TIMER_POS_X, TIMER_POS_Y);
     g_textCanvas.print(timerText);
 }
