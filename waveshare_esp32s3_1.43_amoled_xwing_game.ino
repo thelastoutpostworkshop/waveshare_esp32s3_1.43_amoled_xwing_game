@@ -67,6 +67,8 @@ static bool loadXWingSprite();
 static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void playIntroAnimation();
+static void startGameRound();
+static void restartGameRound();
 static int formatSensorDisplayValue(float value);
 static void updateSpritePosition();
 static void renderFrame();
@@ -80,8 +82,12 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
 #define BLINK_INTRO_POS_X 95
 #define BLINK_INTRO_POS_Y 375
-#define SENSOR_POS_X 360
-#define SENSOR_POS_Y 220
+#define SENSOR_ACCEL_POS_X 10
+#define SENSOR_ACCEL_POS_Y 40
+#define TIMER_POS_X 200
+#define TIMER_POS_Y 40
+#define ROUND_TARGET_HITS 3
+#define ROUND_DURATION_MS 10000
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -99,12 +105,16 @@ static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;    // Delay between frames
-static constexpr uint32_t BLINK_FRAME_DELAY_MS = 0;     // Delay between frames
-static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 0; // Delay between frames
+static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;     // Roughly 15 FPS for intro animation
+static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80;     // Looping blink cadence
+static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50; // Explosion animation speed
 static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, BLINK_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
+
+static bool g_gameActive = false;
+static uint32_t g_roundStartMs = 0;
+static int g_roundHits = 0;
 
 static uint16_t *g_xWingBoldSprite = nullptr;
 static uint16_t *g_xWingFaintSprite = nullptr;
@@ -234,7 +244,12 @@ void setup()
 
     if (g_framebuffersReady && g_spriteReady)
     {
+        startGameRound();
         renderFrame();
+    }
+    else
+    {
+        g_gameActive = false;
     }
 }
 
@@ -246,11 +261,24 @@ void loop()
         return;
     }
 
+    if (!g_gameActive)
+    {
+        delay(16);
+        return;
+    }
+
+    uint32_t elapsedMs = millis() - g_roundStartMs;
+    if (elapsedMs >= ROUND_DURATION_MS)
+    {
+        restartGameRound();
+        return;
+    }
+
     g_explosionAnimation.update();
     updateSpritePosition();
     renderFrame();
 
-    if (g_touchTriggered)
+    if (g_gameActive && g_touchTriggered)
     {
         uint16_t touchXCopy = g_touchStartX;
         uint16_t touchYCopy = g_touchStartY;
@@ -271,6 +299,12 @@ void loop()
                 g_explosionAnimation.start(g_spriteDrawX, g_spriteDrawY);
                 g_spriteVelX = 0.0f;
                 g_spriteVelY = 0.0f;
+                ++g_roundHits;
+                if (g_roundHits >= ROUND_TARGET_HITS)
+                {
+                    restartGameRound();
+                    return;
+                }
             }
         }
     }
@@ -562,7 +596,7 @@ static void playIntroAnimation()
         return;
 
     g_introAnimation.start(0, 0);
-    g_blinkAnimation.start(0, 0);
+    g_blinkAnimation.start(BLINK_INTRO_POS_X, BLINK_INTRO_POS_Y);
     bool playingIntro = true;
     int lastIntroFrame = -1;
     int lastBlinkFrame = -1;
@@ -636,6 +670,22 @@ static void playIntroAnimation()
 
     g_touchStartX = 0;
     g_touchStartY = 0;
+}
+
+static void startGameRound()
+{
+    g_roundHits = 0;
+    g_roundStartMs = millis();
+    g_gameActive = true;
+    g_score = 0;
+    g_explosionAnimation.stop();
+}
+
+static void restartGameRound()
+{
+    g_gameActive = false;
+    playIntroAnimation();
+    startGameRound();
 }
 
 static bool loadXWingSprite()
@@ -757,9 +807,20 @@ static void drawHud()
     char sensorText[16];
     int accelMag = formatSensorDisplayValue(g_imu.ax);
     int gyroMag = formatSensorDisplayValue(g_imu.gx);
-    snprintf(sensorText, sizeof(sensorText), "S-%03d-%03d", accelMag, gyroMag);
-    g_textCanvas.setCursor(SENSOR_POS_X, SENSOR_POS_Y);
+    snprintf(sensorText, sizeof(sensorText), "X-%03d-%03d", accelMag, gyroMag);
+    g_textCanvas.setCursor(SENSOR_ACCEL_POS_X, SENSOR_ACCEL_POS_Y);
     g_textCanvas.print(sensorText);
+
+    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
+    uint32_t elapsed = g_gameActive ? (millis() - g_roundStartMs) : 0;
+    uint32_t remainingMs = (elapsed >= ROUND_DURATION_MS) ? 0 : (ROUND_DURATION_MS - elapsed);
+    int remainingSeconds = (int)(remainingMs / 1000U);
+    if (remainingSeconds > 999)
+        remainingSeconds = 999;
+    char timerText[16];
+    snprintf(timerText, sizeof(timerText), "T-%03d", remainingSeconds);
+    g_textCanvas.setCursor(TIMER_POS_X, TIMER_POS_Y);
+    g_textCanvas.print(timerText);
 }
 
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor)
