@@ -14,10 +14,10 @@
 #include "animationsDefintions.h" // Animation frame definitions
 
 // Game assets
-#include "animationsDefintions.h"      // Animation assets
-#include "images/image_assets.h"       // Image assets
-#include "fonts/Aurebesh_Bold25pt7b.h" // Score font
-#include "fonts/Aurebesh_Bold7pt7b.h" // Sensor font
+#include "animationsDefintions.h"       // Animation assets
+#include "images/image_assets.h"        // Image assets
+#include "fonts/Aurebesh_Bold25pt7b.h"  // Score and timer font
+#include "fonts/Aurebesh_Bold7pt7b.h"   // Sensor font
 
 // Header files helpers
 #include "esp_log.h"
