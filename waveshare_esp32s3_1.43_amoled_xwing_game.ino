@@ -71,9 +71,9 @@ static bool loadXWingSprite();
 static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void playIntroAnimation();
-static void drawBestTimeOverlay();
 static void waitForTouchRelease();
-static void playBlockingAnimation(JpegAnimation &animation);
+static void printBestTimeAt(int16_t x, int16_t y);
+static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY);
 static void playGameOverAnimation();
 static void playYouWinAnimation();
 static void startGameRound();
@@ -95,6 +95,12 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define SENSOR_POS_Y 220
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
+#define INTRO_BEST_TEXT_POS_X 20
+#define INTRO_BEST_TEXT_POS_Y 420
+#define GAME_OVER_BEST_TEXT_POS_X 20
+#define GAME_OVER_BEST_TEXT_POS_Y 420
+#define YOU_WIN_BEST_TEXT_POS_X 20
+#define YOU_WIN_BEST_TEXT_POS_Y 420
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -649,6 +655,7 @@ static void playIntroAnimation()
             if (!g_introAnimation.isActive())
             {
                 playingIntro = false;
+                printBestTimeAt(INTRO_BEST_TEXT_POS_X, INTRO_BEST_TEXT_POS_Y);
                 g_blinkAnimation.start(BLINK_INTRO_POS_X, BLINK_INTRO_POS_Y);
                 lastBlinkFrame = -1;
                 blinkRestartMs = millis();
@@ -674,12 +681,11 @@ static void playIntroAnimation()
                 if (g_blinkAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                    printBestTimeAt(INTRO_BEST_TEXT_POS_X, INTRO_BEST_TEXT_POS_Y);
                 }
                 lastBlinkFrame = blinkFrame;
             }
         }
-
-        drawBestTimeOverlay();
 
         if (g_touchTriggered)
         {
@@ -703,21 +709,15 @@ static void playIntroAnimation()
     g_touchStartY = 0;
 }
 
-static void drawBestTimeOverlay()
+static void printBestTimeAt(int16_t x, int16_t y)
 {
     if (!g_display)
         return;
 
-    const int overlayX = 20;
-    const int overlayY = 20;
-    const int overlayWidth = 260;
-    const int overlayHeight = 60;
-
-    g_display->fillRect(overlayX, overlayY, overlayWidth, overlayHeight, COLOR_BLACK);
     g_display->setFont(&Aurebesh_Bold25pt7b);
     g_display->setTextSize(1);
     g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
-    g_display->setCursor(overlayX + 12, overlayY + overlayHeight - 12);
+    g_display->setCursor(x, y);
 
     char buf[32];
     if (g_bestRoundTimeMs == 0)
@@ -748,7 +748,7 @@ static void waitForTouchRelease()
     }
 }
 
-static void playBlockingAnimation(JpegAnimation &animation)
+static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY)
 {
     if (!g_framebuffersReady || !g_display)
     {
@@ -780,6 +780,7 @@ static void playBlockingAnimation(JpegAnimation &animation)
 
     int lastFrame = -1;
     bool animationFinished = false;
+    bool bestPrinted = false;
 
     while (true)
     {
@@ -802,7 +803,11 @@ static void playBlockingAnimation(JpegAnimation &animation)
             }
         }
 
-        drawBestTimeOverlay();
+        if (animationFinished && !bestPrinted)
+        {
+            printBestTimeAt(bestTextX, bestTextY);
+            bestPrinted = true;
+        }
 
         if (!animationFinished && g_touchTriggered)
         {
@@ -811,11 +816,21 @@ static void playBlockingAnimation(JpegAnimation &animation)
         }
         else if (animationFinished && g_touchTriggered)
         {
+            if (!bestPrinted)
+            {
+                printBestTimeAt(bestTextX, bestTextY);
+                bestPrinted = true;
+            }
             g_touchTriggered = false;
             break;
         }
 
         delay(16);
+    }
+
+    if (!bestPrinted)
+    {
+        printBestTimeAt(bestTextX, bestTextY);
     }
 
     waitForTouchRelease();
@@ -828,12 +843,12 @@ static void playBlockingAnimation(JpegAnimation &animation)
 
 static void playGameOverAnimation()
 {
-    playBlockingAnimation(g_gameOverAnimation);
+    playBlockingAnimation(g_gameOverAnimation, GAME_OVER_BEST_TEXT_POS_X, GAME_OVER_BEST_TEXT_POS_Y);
 }
 
 static void playYouWinAnimation()
 {
-    playBlockingAnimation(g_youWinAnimation);
+    playBlockingAnimation(g_youWinAnimation, YOU_WIN_BEST_TEXT_POS_X, YOU_WIN_BEST_TEXT_POS_Y);
 }
 
 static void startGameRound()
