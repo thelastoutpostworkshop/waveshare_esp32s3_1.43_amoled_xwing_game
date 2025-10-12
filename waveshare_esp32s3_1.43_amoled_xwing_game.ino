@@ -80,8 +80,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
 #define BLINK_INTRO_POS_X 95
 #define BLINK_INTRO_POS_Y 375
-#define SENSOR_ACCEL_POS_X 10
-#define SENSOR_ACCEL_POS_Y 40
+#define SENSOR_POS_X 300
+#define SENSOR_POS_Y 270
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -758,7 +758,7 @@ static void drawHud()
     int accelMag = formatSensorDisplayValue(g_imu.ax);
     int gyroMag = formatSensorDisplayValue(g_imu.gx);
     snprintf(sensorText, sizeof(sensorText), "S-%03d-%03d", accelMag, gyroMag);
-    g_textCanvas.setCursor(SENSOR_ACCEL_POS_X, SENSOR_ACCEL_POS_Y);
+    g_textCanvas.setCursor(SENSOR_POS_X, SENSOR_POS_Y);
     g_textCanvas.print(sensorText);
 }
 
