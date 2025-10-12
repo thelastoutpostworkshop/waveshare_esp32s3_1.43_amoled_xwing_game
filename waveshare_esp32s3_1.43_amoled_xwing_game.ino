@@ -34,6 +34,10 @@
 #define DAMPING 0.92f        // 1.0 = glide forever, 0.0 = stop instantly
 #define XWING_TARGET_AREA 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
+// Game goals
+#define ROUND_TARGET_HITS 3         // Number of hits before times run out
+#define ROUND_DURATION_MS 10000     // Time to score hits in ms
+
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
 #define XWING_DIRECTION_MODE 2
@@ -86,8 +90,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define SENSOR_POS_Y 220
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
-#define ROUND_TARGET_HITS 3
-#define ROUND_DURATION_MS 10000
+
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
