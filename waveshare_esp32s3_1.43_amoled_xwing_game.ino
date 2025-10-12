@@ -18,7 +18,7 @@
 #include "animationsDefintions.h"      // Animation assets
 #include "images/image_assets.h"       // Image assets
 #include "fonts/Aurebesh_Bold25pt7b.h" // Font
-#include "fonts/Aurebesh_Bold10pt7b.h" // Font
+#include "fonts/Aurebesh_Bold7pt7b.h" // Font
 
 // Header files helpers
 #include "esp_log.h"
@@ -80,8 +80,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
 #define BLINK_INTRO_POS_X 95
 #define BLINK_INTRO_POS_Y 375
-#define SENSOR_POS_X 300
-#define SENSOR_POS_Y 270
+#define SENSOR_POS_X 360
+#define SENSOR_POS_Y 220
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -752,7 +752,7 @@ static void drawHud()
     snprintf(scoreBuf, sizeof(scoreBuf), "%lu", (unsigned long)g_score);
     g_textCanvas.print(scoreBuf);
 
-    g_textCanvas.setFont(&Aurebesh_Bold10pt7b);
+    g_textCanvas.setFont(&Aurebesh_Bold7pt7b);
 
     char sensorText[16];
     int accelMag = formatSensorDisplayValue(g_imu.ax);
