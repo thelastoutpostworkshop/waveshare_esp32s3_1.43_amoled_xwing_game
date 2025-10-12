@@ -6,6 +6,8 @@
 
 constexpr int kExplosionFrameCount = 30;
 constexpr int kIntroFrameCount = 60;
+constexpr int kBlinkFrameCount = 30;
 
 extern const JpegAnimationFrame g_explosionFrames[kExplosionFrameCount];
 extern const JpegAnimationFrame g_introFrames[kIntroFrameCount];
+extern const JpegAnimationFrame g_blinkFrames[kBlinkFrameCount];

@@ -36,6 +36,7 @@ public:
     bool isActive() const;
     void setFrameDelay(uint32_t delayMs);
     void setDecodeOptions(int options);
+    int currentFrame() const;
 
 private:
     const JpegAnimationFrame *m_frames = nullptr;

@@ -87,3 +87,8 @@ void JpegAnimation::setDecodeOptions(int options)
 {
     m_decodeOptions = options;
 }
+
+int JpegAnimation::currentFrame() const
+{
+    return m_frameIndex;
+}

@@ -94,8 +94,10 @@ static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;     // Roughly 15 FPS for intro animation
+static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80;     // Looping blink cadence
 static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;
 static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
+static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, BLINK_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
 
 static uint16_t *g_xWingBoldSprite = nullptr;
@@ -545,20 +547,57 @@ static void playIntroAnimation()
         return;
 
     g_introAnimation.start(0, 0);
-    bool animationRunning = true;
+    g_blinkAnimation.start(0, 0);
+    bool playingIntro = true;
+    int lastIntroFrame = -1;
+    int lastBlinkFrame = -1;
+    uint32_t blinkRestartMs = millis();
 
     while (true)
     {
-        if (animationRunning)
+        if (playingIntro)
         {
             g_introAnimation.update();
-            if (g_introAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+            int currentFrame = g_introAnimation.currentFrame();
+            if (lastIntroFrame != currentFrame)
             {
-                g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                if (g_introAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+                {
+                    g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                }
+                lastIntroFrame = currentFrame;
             }
-            else if (!g_introAnimation.isActive())
+
+            if (!g_introAnimation.isActive())
             {
-                animationRunning = false;
+                playingIntro = false;
+                g_blinkAnimation.start(0, 0);
+                lastBlinkFrame = -1;
+                blinkRestartMs = millis();
+            }
+        }
+        else
+        {
+            g_blinkAnimation.update();
+            if (!g_blinkAnimation.isActive())
+            {
+                uint32_t now = millis();
+                if (now - blinkRestartMs >= 200)
+                {
+                    g_blinkAnimation.start(0, 300);
+                    lastBlinkFrame = -1;
+                    blinkRestartMs = now;
+                }
+            }
+
+            int blinkFrame = g_blinkAnimation.currentFrame();
+            if (lastBlinkFrame != blinkFrame)
+            {
+                if (g_blinkAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+                {
+                    g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                }
+                lastBlinkFrame = blinkFrame;
             }
         }
 
@@ -572,6 +611,7 @@ static void playIntroAnimation()
     }
 
     g_introAnimation.stop();
+    g_blinkAnimation.stop();
     g_frontBufferIndex = 0;
 
     while (touchX != 0 || touchY != 0)
