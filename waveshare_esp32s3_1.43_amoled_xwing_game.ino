@@ -70,6 +70,7 @@ static bool loadXWingSprite();
 static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void playIntroAnimation();
+static void playGameOverAnimation();
 static void startGameRound();
 static void restartGameRound();
 static int formatSensorDisplayValue(float value);
@@ -108,11 +109,13 @@ static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;     // Roughly 15 FPS for intro animation
-static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80;     // Looping blink cadence
-static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50; // Explosion animation speed
+static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;      // Roughly 15 FPS for intro animation
+static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80;      // Looping blink cadence
+static constexpr uint32_t GAME_OVER_FRAME_DELAY_MS = 66;  // Roughly 15 FPS for game-over animation
+static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;  // Explosion animation speed
 static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, BLINK_FRAME_DELAY_MS, decodeJpegToBuffer);
+static JpegAnimation g_gameOverAnimation(g_gameOverFrames, kGameOverFrameCount, GAME_OVER_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
 
 static bool g_gameActive = false;
@@ -273,7 +276,11 @@ void loop()
     uint32_t elapsedMs = millis() - g_roundStartMs;
     if (elapsedMs >= ROUND_DURATION_MS)
     {
-        restartGameRound();
+        g_gameActive = false;
+        g_explosionAnimation.stop();
+        playGameOverAnimation();
+        startGameRound();
+        renderFrame();
         return;
     }
 
@@ -673,6 +680,95 @@ static void playIntroAnimation()
 
     g_touchStartX = 0;
     g_touchStartY = 0;
+}
+
+static void playGameOverAnimation()
+{
+    if (!g_framebuffersReady || !g_display)
+    {
+        g_touchTriggered = false;
+        while (!g_touchTriggered)
+        {
+            delay(16);
+        }
+        g_touchTriggered = false;
+        while (touchX != 0 || touchY != 0)
+        {
+            delay(10);
+        }
+        g_touchStartX = 0;
+        g_touchStartY = 0;
+        return;
+    }
+
+    while (touchX != 0 || touchY != 0)
+    {
+        delay(10);
+    }
+
+    g_touchTriggered = false;
+
+    uint16_t *buffer = g_frameBuffers[g_frontBufferIndex];
+    if (!buffer)
+    {
+        buffer = g_frameBuffers[0];
+    }
+    if (!buffer)
+        return;
+
+    g_gameOverAnimation.stop();
+    g_gameOverAnimation.start(0, 0);
+
+    int lastFrame = -1;
+    bool animationFinished = false;
+
+    while (true)
+    {
+        if (!animationFinished)
+        {
+            g_gameOverAnimation.update();
+            int currentFrame = g_gameOverAnimation.currentFrame();
+            if (currentFrame != lastFrame)
+            {
+                if (g_gameOverAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+                {
+                    g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                }
+                lastFrame = currentFrame;
+            }
+
+            if (!g_gameOverAnimation.isActive())
+            {
+                animationFinished = true;
+            }
+        }
+
+        if (!animationFinished && g_touchTriggered)
+        {
+            g_touchTriggered = false;
+            while (touchX != 0 || touchY != 0)
+            {
+                delay(10);
+            }
+        }
+        else if (animationFinished && g_touchTriggered)
+        {
+            g_touchTriggered = false;
+            break;
+        }
+
+        delay(16);
+    }
+
+    while (touchX != 0 || touchY != 0)
+    {
+        delay(10);
+    }
+
+    g_touchStartX = 0;
+    g_touchStartY = 0;
+    g_gameOverAnimation.stop();
+    g_frontBufferIndex = 0;
 }
 
 static void startGameRound()
