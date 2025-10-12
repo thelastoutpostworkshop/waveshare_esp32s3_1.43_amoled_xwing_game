@@ -2,21 +2,21 @@
 // Use board "Waveshare ESP32-S3-Touch-AMOLED-1.43" (last tested on v3.3.2)
 
 // Libraries to be installed
-#include "JPEGDEC.h"                // Install "JPEGDEC" library version 1.8.2
-#include <Arduino_GFX_Library.h>    // Install "GFX Library for Arduino" version 1.6.2
+#include "JPEGDEC.h"             // Install "JPEGDEC" library version 1.8.2
+#include <Arduino_GFX_Library.h> // Install "GFX Library for Arduino" version 1.6.2
 
 // Main header files included in this project
-#include "board_config.h"           // Waveshare ESP32-S3-Touch-AMOLED-1.43 pins & other configurations
-#include "FT3168.h"                 // Capacitive Touch functions, included in the project
-#include "qmi8658c.h"               // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
-#include "JpegAnimation.h"          // JPEG animation class
-#include "CanvasTypes.h"            // Canvas class
-#include "animationsDefintions.h"    // Animation frame definitions
+#include "board_config.h"         // Waveshare ESP32-S3-Touch-AMOLED-1.43 pins & other configurations
+#include "FT3168.h"               // Capacitive Touch functions, included in the project
+#include "qmi8658c.h"             // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
+#include "JpegAnimation.h"        // JPEG animation class
+#include "CanvasTypes.h"          // Canvas class
+#include "animationsDefintions.h" // Animation frame definitions
 
 // Game assets
 #include "animationsDefintions.h"      // Animation assets
-#include "images/image_assets.h"        // Image assets 
-#include "fonts/Aurebesh_Bold20pt7b.h"  // Fonts 
+#include "images/image_assets.h"       // Image assets
+#include "fonts/Aurebesh_Bold20pt7b.h" // Fonts
 
 // Header files helpers
 #include "esp_log.h"
@@ -27,10 +27,10 @@
 
 // Game instructions
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
-#define ACCEL_SCALE 1.5f            // Tilt acceleration scale
-#define GYRO_SCALE 0.05f            // Gyro rotation influence
-#define DAMPING 0.92f               // 1.0 = glide forever, 0.0 = stop instantly
-#define XWING_TARGET_AREA 30            // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
+#define ACCEL_SCALE 1.5f     // Tilt acceleration scale
+#define GYRO_SCALE 0.05f     // Gyro rotation influence
+#define DAMPING 0.92f        // 1.0 = glide forever, 0.0 = stop instantly
+#define XWING_TARGET_AREA 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
@@ -71,11 +71,12 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
-#define SCORE_POS_X 70  // Horizontal position for score text
-#define SCORE_POS_Y 370 // Vertical baseline for score text
-#define XWING_VISIBLE_MARGIN 10     // Pixels guaranteed to remain on-screen when drifting off the edge
+#define SCORE_POS_X 70                         // Horizontal position for score text
+#define SCORE_POS_Y 370                        // Vertical baseline for score text
+#define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
+#define BLINK_INTRO_POS_X 95
+#define BLINK_INTRO_POS_Y 375
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -93,8 +94,8 @@ static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;     // Roughly 15 FPS for intro animation
-static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80;     // Looping blink cadence
+static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66; // Roughly 15 FPS for intro animation
+static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80; // Looping blink cadence
 static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;
 static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, BLINK_FRAME_DELAY_MS, decodeJpegToBuffer);
@@ -571,7 +572,7 @@ static void playIntroAnimation()
             if (!g_introAnimation.isActive())
             {
                 playingIntro = false;
-                g_blinkAnimation.start(0, 0);
+                g_blinkAnimation.start(BLINK_INTRO_POS_X, BLINK_INTRO_POS_Y);
                 lastBlinkFrame = -1;
                 blinkRestartMs = millis();
             }
@@ -584,7 +585,7 @@ static void playIntroAnimation()
                 uint32_t now = millis();
                 if (now - blinkRestartMs >= 200)
                 {
-                    g_blinkAnimation.start(0, 300);
+                    g_blinkAnimation.start(BLINK_INTRO_POS_X, BLINK_INTRO_POS_Y);
                     lastBlinkFrame = -1;
                     blinkRestartMs = now;
                 }
@@ -1021,5 +1022,3 @@ static void printJpegError(const char *context, int error)
     const char *description = jpegErrorToString(error);
     Serial.printf("%s (error %d: %s)\n", context, error, description);
 }
-
-
