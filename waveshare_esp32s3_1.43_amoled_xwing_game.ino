@@ -71,6 +71,7 @@ static bool loadXWingSprite();
 static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void playIntroAnimation();
+static void drawBestTimeOverlay();
 static void waitForTouchRelease();
 static void playBlockingAnimation(JpegAnimation &animation);
 static void playGameOverAnimation();
@@ -137,6 +138,7 @@ static int g_shipCenterX = DISPLAY_WIDTH / 2;
 static int g_shipCenterY = DISPLAY_HEIGHT / 2;
 static int g_currentLeeway = 0;
 static uint32_t g_score = 0;
+static uint32_t g_bestRoundTimeMs = 0;
 static volatile bool g_touchTriggered = false;
 static volatile uint16_t g_touchStartX = 0;
 static volatile uint16_t g_touchStartY = 0;
@@ -284,6 +286,7 @@ void loop()
         g_gameActive = false;
         g_explosionAnimation.stop();
         playGameOverAnimation();
+        playIntroAnimation();
         startGameRound();
         renderFrame();
         return;
@@ -317,9 +320,16 @@ void loop()
                 ++g_roundHits;
                 if (g_roundHits >= ROUND_TARGET_HITS)
                 {
+                    uint32_t roundTimeMs = millis() - g_roundStartMs;
+                    if (roundTimeMs == 0)
+                        roundTimeMs = 1;
+                    if (g_bestRoundTimeMs == 0 || roundTimeMs < g_bestRoundTimeMs)
+                        g_bestRoundTimeMs = roundTimeMs;
+
                     g_gameActive = false;
                     g_explosionAnimation.stop();
                     playYouWinAnimation();
+                    playIntroAnimation();
                     startGameRound();
                     renderFrame();
                     return;
@@ -669,6 +679,8 @@ static void playIntroAnimation()
             }
         }
 
+        drawBestTimeOverlay();
+
         if (g_touchTriggered)
         {
             g_touchTriggered = false;
@@ -689,6 +701,43 @@ static void playIntroAnimation()
 
     g_touchStartX = 0;
     g_touchStartY = 0;
+}
+
+static void drawBestTimeOverlay()
+{
+    if (!g_display)
+        return;
+
+    const int overlayX = 20;
+    const int overlayY = 20;
+    const int overlayWidth = 260;
+    const int overlayHeight = 60;
+
+    g_display->fillRect(overlayX, overlayY, overlayWidth, overlayHeight, COLOR_BLACK);
+    g_display->setFont(&Aurebesh_Bold25pt7b);
+    g_display->setTextSize(1);
+    g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
+    g_display->setCursor(overlayX + 12, overlayY + overlayHeight - 12);
+
+    char buf[32];
+    if (g_bestRoundTimeMs == 0)
+    {
+        snprintf(buf, sizeof(buf), "Best: --.--s");
+    }
+    else
+    {
+        uint32_t ms = g_bestRoundTimeMs;
+        uint32_t secs = ms / 1000U;
+        uint32_t hundredths = (ms % 1000U) / 10U;
+        if (secs > 999U)
+        {
+            secs = 999U;
+            hundredths = 99U;
+        }
+        snprintf(buf, sizeof(buf), "Best: %lu.%02lus", (unsigned long)secs, (unsigned long)hundredths);
+    }
+
+    g_display->print(buf);
 }
 
 static void waitForTouchRelease()
@@ -752,6 +801,8 @@ static void playBlockingAnimation(JpegAnimation &animation)
                 animationFinished = true;
             }
         }
+
+        drawBestTimeOverlay();
 
         if (!animationFinished && g_touchTriggered)
         {
