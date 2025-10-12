@@ -17,8 +17,8 @@
 // Game assets
 #include "animationsDefintions.h"      // Animation assets
 #include "images/image_assets.h"       // Image assets
-#include "fonts/Aurebesh_Bold25pt7b.h" // Font
-#include "fonts/Aurebesh_Bold7pt7b.h"  // Font
+#include "fonts/Aurebesh_Bold25pt7b.h" // Score font
+#include "fonts/Aurebesh_Bold7pt7b.h" // Sensor font
 
 // Header files helpers
 #include "esp_log.h"
@@ -82,8 +82,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
 #define BLINK_INTRO_POS_X 95
 #define BLINK_INTRO_POS_Y 375
-#define SENSOR_ACCEL_POS_X 10
-#define SENSOR_ACCEL_POS_Y 40
+#define SENSOR_POS_X 360
+#define SENSOR_POS_Y 220
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
 #define ROUND_TARGET_HITS 3
@@ -95,6 +95,7 @@ static Arduino_DataBus *g_displayBus = nullptr;
 static Arduino_CO5300 *g_display = nullptr;
 static constexpr uint16_t COLOR_BLACK = 0x0000;
 static constexpr uint16_t COLOR_WHITE = 0xFFFF;
+static constexpr uint16_t COLOR_RED = 0xF800;
 
 static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
 static int g_frontBufferIndex = 0;
@@ -803,25 +804,26 @@ static void drawHud()
     g_textCanvas.print(scoreBuf);
 
     g_textCanvas.setFont(&Aurebesh_Bold7pt7b);
-
     char sensorText[16];
     int accelMag = formatSensorDisplayValue(g_imu.ax);
     int gyroMag = formatSensorDisplayValue(g_imu.gx);
     snprintf(sensorText, sizeof(sensorText), "X-%03d-%03d", accelMag, gyroMag);
-    g_textCanvas.setCursor(SENSOR_ACCEL_POS_X, SENSOR_ACCEL_POS_Y);
+    g_textCanvas.setCursor(SENSOR_POS_X, SENSOR_POS_Y);
     g_textCanvas.print(sensorText);
 
-    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
     uint32_t elapsed = g_gameActive ? (millis() - g_roundStartMs) : 0;
     uint32_t remainingMs = (elapsed >= ROUND_DURATION_MS) ? 0 : (ROUND_DURATION_MS - elapsed);
     int remainingSeconds = (int)(remainingMs / 1000U);
     if (remainingSeconds > 999)
         remainingSeconds = 999;
+    uint16_t timerColor = (remainingSeconds <= 3 && g_gameActive) ? COLOR_RED : COLOR_WHITE;
+    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
+    g_textCanvas.setTextColor(timerColor, COLOR_BLACK);
     char timerText[16];
     snprintf(timerText, sizeof(timerText), "%d", remainingSeconds);
-    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
     g_textCanvas.setCursor(TIMER_POS_X, TIMER_POS_Y);
     g_textCanvas.print(timerText);
+    g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
 }
 
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor)
