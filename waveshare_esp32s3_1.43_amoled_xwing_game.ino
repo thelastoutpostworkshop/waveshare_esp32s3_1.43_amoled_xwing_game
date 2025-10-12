@@ -4,7 +4,6 @@
 // Libraries to be installed
 #include "JPEGDEC.h"             // Install "JPEGDEC" library version 1.8.2
 #include <Arduino_GFX_Library.h> // Install "GFX Library for Arduino" version 1.6.2
-#include <cmath>
 
 // Main header files included in this project
 #include "board_config.h"         // Waveshare ESP32-S3-Touch-AMOLED-1.43 pins & other configurations
@@ -34,13 +33,13 @@
 #define DAMPING 0.92f        // 1.0 = glide forever, 0.0 = stop instantly
 #define XWING_TARGET_AREA 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
-// Game goals
-#define ROUND_TARGET_HITS 3         // Number of hits before times run out
-#define ROUND_DURATION_MS 10000     // Time to score hits in ms
-
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
 // You can make the game harder by choosing a mode that is unatural to you
 #define XWING_DIRECTION_MODE 2
+
+// Game goals
+#define ROUND_TARGET_HITS 3         // Number of hits before times run out
+#define ROUND_DURATION_MS 10000     // Time to score hits in ms
 
 JPEGDEC jpeg;
 
