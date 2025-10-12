@@ -38,8 +38,9 @@
 #define XWING_DIRECTION_MODE 2
 
 // Game goals
-#define ROUND_TARGET_HITS 3         // Number of hits before times run out
-#define ROUND_DURATION_MS 10000     // Time to score hits in ms
+#define ROUND_TARGET_HITS 3           // Number of hits before times run out
+#define ROUND_DURATION_SECONDS 20     // Time to score hits in seconds
+#define ROUND_DURATION_MS (ROUND_DURATION_SECONDS * 1000U)
 
 JPEGDEC jpeg;
 
