@@ -94,9 +94,9 @@ static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66; // Roughly 15 FPS for intro animation
-static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80; // Looping blink cadence
-static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;
+static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;    // Delay between frames
+static constexpr uint32_t BLINK_FRAME_DELAY_MS = 0;     // Delay between frames
+static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 0; // Delay between frames
 static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, BLINK_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
