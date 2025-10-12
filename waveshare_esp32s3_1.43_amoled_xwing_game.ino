@@ -80,6 +80,7 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
+// Game global variables, no need to change this
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 #define SCORE_POS_X 70                         // Horizontal position for score text
 #define SCORE_POS_Y 370                        // Vertical baseline for score text
@@ -90,7 +91,6 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define SENSOR_POS_Y 220
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
-
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
