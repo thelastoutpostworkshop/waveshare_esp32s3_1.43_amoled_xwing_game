@@ -16,7 +16,7 @@
 // Game assets
 #include "animationsDefintions.h"      // Animation assets
 #include "images/image_assets.h"       // Image assets
-#include "fonts/Aurebesh_Bold20pt7b.h" // Fonts
+#include "fonts/Aurebesh_Bold25pt7b.h" // Fonts
 
 // Header files helpers
 #include "esp_log.h"
@@ -730,7 +730,7 @@ static void drawHud()
         return;
 
     g_textCanvas.fillScreen(COLOR_BLACK);
-    g_textCanvas.setFont(&Aurebesh_Bold20pt7b);
+    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
     g_textCanvas.setCursor(SCORE_POS_X, SCORE_POS_Y);
 
