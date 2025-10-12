@@ -11,9 +11,10 @@
 #include "qmi8658c.h"               // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
 #include "JpegAnimation.h"          // JPEG animation class
 #include "CanvasTypes.h"            // Canvas class
+#include "animationsDefintions.h"    // Animation frame definitions
 
 // Game assets
-#include "animationsDefinitions.h"      // Animation assets
+#include "animationsDefintions.h"      // Animation assets
 #include "images/image_assets.h"        // Image assets 
 #include "fonts/Aurebesh_Bold20pt7b.h"  // Fonts 
 
@@ -63,6 +64,7 @@ static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *s
 static bool loadXWingSprite();
 static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
+static void playIntroAnimation();
 static void updateSpritePosition();
 static void renderFrame();
 static void drawHud();
@@ -91,7 +93,9 @@ static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
+static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;     // Roughly 15 FPS for intro animation
 static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;
+static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
 static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
 
 static uint16_t *g_xWingBoldSprite = nullptr;
@@ -217,6 +221,8 @@ void setup()
     {
         Serial.println("ERROR: Failed to load X-Wing sprite");
     }
+
+    playIntroAnimation();
 
     if (g_framebuffersReady && g_spriteReady)
     {
@@ -510,6 +516,71 @@ static bool buildStaticBackground()
 
     g_backgroundReady = ok;
     return ok;
+}
+
+static void playIntroAnimation()
+{
+    if (!g_framebuffersReady || !g_display)
+    {
+        while (!g_touchTriggered)
+        {
+            delay(16);
+        }
+        g_touchTriggered = false;
+        while (touchX != 0 || touchY != 0)
+        {
+            delay(10);
+        }
+        g_touchStartX = 0;
+        g_touchStartY = 0;
+        return;
+    }
+
+    uint16_t *buffer = g_frameBuffers[g_frontBufferIndex];
+    if (!buffer)
+    {
+        buffer = g_frameBuffers[0];
+    }
+    if (!buffer)
+        return;
+
+    g_introAnimation.start(0, 0);
+    bool animationRunning = true;
+
+    while (true)
+    {
+        if (animationRunning)
+        {
+            g_introAnimation.update();
+            if (g_introAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+            {
+                g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+            }
+            else if (!g_introAnimation.isActive())
+            {
+                animationRunning = false;
+            }
+        }
+
+        if (g_touchTriggered)
+        {
+            g_touchTriggered = false;
+            break;
+        }
+
+        delay(16);
+    }
+
+    g_introAnimation.stop();
+    g_frontBufferIndex = 0;
+
+    while (touchX != 0 || touchY != 0)
+    {
+        delay(10);
+    }
+
+    g_touchStartX = 0;
+    g_touchStartY = 0;
 }
 
 static bool loadXWingSprite()
