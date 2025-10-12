@@ -4,6 +4,7 @@
 // Libraries to be installed
 #include "JPEGDEC.h"             // Install "JPEGDEC" library version 1.8.2
 #include <Arduino_GFX_Library.h> // Install "GFX Library for Arduino" version 1.6.2
+#include <cmath>
 
 // Main header files included in this project
 #include "board_config.h"         // Waveshare ESP32-S3-Touch-AMOLED-1.43 pins & other configurations
@@ -66,6 +67,7 @@ static bool loadXWingSprite();
 static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void playIntroAnimation();
+static int formatSensorDisplayValue(float value);
 static void updateSpritePosition();
 static void renderFrame();
 static void drawHud();
@@ -78,6 +80,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
 #define BLINK_INTRO_POS_X 95
 #define BLINK_INTRO_POS_Y 375
+#define SENSOR_ACCEL_POS_X 10
+#define SENSOR_ACCEL_POS_Y 40
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -522,6 +526,15 @@ static bool buildStaticBackground()
     return ok;
 }
 
+static int formatSensorDisplayValue(float value)
+{
+    float scaled = fabsf(value) * 100.0f;
+    int display = static_cast<int>(scaled + 0.5f);
+    if (display > 999)
+        display = 999;
+    return display;
+}
+
 static void playIntroAnimation()
 {
     if (!g_framebuffersReady || !g_display)
@@ -731,13 +744,22 @@ static void drawHud()
         return;
 
     g_textCanvas.fillScreen(COLOR_BLACK);
-    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
-    g_textCanvas.setCursor(SCORE_POS_X, SCORE_POS_Y);
 
+    g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
+    g_textCanvas.setCursor(SCORE_POS_X, SCORE_POS_Y);
     char scoreBuf[16];
     snprintf(scoreBuf, sizeof(scoreBuf), "%lu", (unsigned long)g_score);
     g_textCanvas.print(scoreBuf);
+
+    g_textCanvas.setFont(&Aurebesh_Bold10pt7b);
+
+    char sensorText[16];
+    int accelMag = formatSensorDisplayValue(g_imu.ax);
+    int gyroMag = formatSensorDisplayValue(g_imu.gx);
+    snprintf(sensorText, sizeof(sensorText), "S-%03d-%03d", accelMag, gyroMag);
+    g_textCanvas.setCursor(SENSOR_ACCEL_POS_X, SENSOR_ACCEL_POS_Y);
+    g_textCanvas.print(sensorText);
 }
 
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor)
