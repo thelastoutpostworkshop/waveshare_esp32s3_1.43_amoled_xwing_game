@@ -14,14 +14,14 @@
 #include "animationsDefintions.h" // Animation frame definitions, included in the project
 
 // Game assets
-#include "animationsDefintions.h"              // Animation assets
-#include "images/image_assets.h"               // Image assets
-#include "fonts/Aurebesh_Bold25pt7b.h"         // Score and timer font
-#include "fonts/Aurebesh_Bold7pt7b.h"          // Sensor font
-#include "fonts/square_sans_serif_717pt7b.h"   // Best score font
+#include "animationsDefintions.h"            // Animation assets
+#include "images/image_assets.h"             // Image assets
+#include "fonts/Aurebesh_Bold25pt7b.h"       // Score and timer font
+#include "fonts/Aurebesh_Bold7pt7b.h"        // Sensor font
+#include "fonts/square_sans_serif_717pt7b.h" // Best score font
 
 // Header files helpers
-#include <Preferences.h>         // ESP32 NVS storage
+#include <Preferences.h> // ESP32 NVS storage
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -29,13 +29,13 @@
 #include "esp32-hal-psram.h"
 
 // Game instructions
-// Tilt and steady the X-Wing so it drifts over the target, 
-// tap when you’re lined up to score a hit, 
+// Tilt and steady the X-Wing so it drifts over the target,
+// tap when you’re lined up to score a hit,
 // race the clock to land three hits, and chase faster times to earn a medal.
 //
 // Game goals
-#define ROUND_TARGET_HITS 3           // Number of hits to win before times run out
-#define ROUND_DURATION_SECONDS 20     // Time to score the number of hits in seconds
+#define ROUND_TARGET_HITS 3       // Number of hits to win before times run out
+#define ROUND_DURATION_SECONDS 20 // Time to score the number of hits in seconds
 #define ROUND_DURATION_MS (ROUND_DURATION_SECONDS * 1000U)
 
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
@@ -48,24 +48,8 @@
 // You can make the game harder by choosing a mode that is unatural to you
 #define XWING_DIRECTION_MODE 2
 
-
-JPEGDEC jpeg;
-
-// Touch global variables
-volatile uint16_t touchX = 0;
-volatile uint16_t touchY = 0;
-static TaskHandle_t touchTaskHandle = nullptr;
-
-// Global to store the latest sample read the accelerometer and gyroscope (QMI8658)
-typedef struct
-{
-    float ax, ay, az;
-    float gx, gy, gz;
-    float temp;
-} ImuData;
-volatile ImuData g_imu;
-#define READ_SAMPLE_INTERVAL_MS 50 // Interval in ms to read a sample from the QMI8658
-
+// Functions signature declaration
+//
 static inline uint16_t toBE565(uint16_t color);
 static void touchTask(void *pvParameter);
 static const char *jpegErrorToString(int error);
@@ -111,6 +95,22 @@ static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t 
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
 // Game global variables, no need to change this, unless you redesign the game
+JPEGDEC jpeg;
+
+// Touch global variables
+volatile uint16_t touchX = 0;
+volatile uint16_t touchY = 0;
+static TaskHandle_t touchTaskHandle = nullptr;
+
+// Global to store the latest sample read the accelerometer and gyroscope (QMI8658)
+typedef struct
+{
+    float ax, ay, az;
+    float gx, gy, gz;
+    float temp;
+} ImuData;
+volatile ImuData g_imu;
+#define READ_SAMPLE_INTERVAL_MS 50             // Interval in ms to read a sample from the QMI8658
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 #define SCORE_POS_X 70                         // Horizontal position for score text
 #define SCORE_POS_Y 370                        // Vertical baseline for score text
