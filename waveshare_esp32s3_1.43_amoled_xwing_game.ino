@@ -1426,7 +1426,7 @@ static void playYouWinAnimation()
                           YOU_WIN_SCORE_TEXT_POS_X,
                           YOU_WIN_SCORE_TEXT_POS_Y,
                           true,
-                          &g_medalAnimation,
+                          g_lastRoundSetNewBest ? &g_medalAnimation : nullptr,
                           MEDAL_ANIM_POS_X,
                           MEDAL_ANIM_POS_Y);
 }
