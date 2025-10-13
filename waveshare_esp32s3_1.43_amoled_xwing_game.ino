@@ -716,6 +716,7 @@ static void printBestTimeAt(int16_t x, int16_t y)
         return;
 
     g_display->setFont(&square_sans_serif_728pt7b);
+    g_display->setTextSize(1);
     g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
     g_display->setCursor(x, y);
 
