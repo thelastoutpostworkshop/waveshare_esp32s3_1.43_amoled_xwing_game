@@ -206,9 +206,9 @@ void setup()
     Serial.begin(115200);
     delay(1000); // Give time to the serial port to show initial messages printed on the serial port upon reset
 
-    esp_log_level_set("i2c.master", ESP_LOG_NONE);
+    esp_log_level_set("i2c.master", ESP_LOG_NONE); // The i2c is too chatty when log is enabled
 
-    if (!psramFound())
+    if (!psramFound()) // PSRAM must be enabled in your board configuration
     {
         Serial.println("ERROR: PSRAM not detected. Enable PSRAM first.");
         while (true)
@@ -217,12 +217,14 @@ void setup()
         }
     }
 
+    // The boot button is used to clear the best score achieved
     pinMode(PIN_NUM_BOOT, INPUT_PULLUP);
     g_bootButtonLastLevel = digitalRead(PIN_NUM_BOOT);
     g_highScoreScreenActive = false;
     g_highScoreScreenCleared = false;
     g_highScorePausedTimer = false;
 
+    // The NVS is used to store the best score and to survived power off
     if (g_nvsPrefs.begin(NVS_NAMESPACE, false))
     {
         g_bestRoundTimeMs = g_nvsPrefs.getUInt(NVS_BEST_MS_KEY, 0);
@@ -234,13 +236,7 @@ void setup()
         Serial.println("WARNING: Failed to initialize NVS storage");
     }
 
-    g_displayBus = new Arduino_ESP32QSPI(PIN_NUM_LCD_CS,
-                                         PIN_NUM_LCD_PCLK,
-                                         PIN_NUM_LCD_DATA0,
-                                         PIN_NUM_LCD_DATA1,
-                                         PIN_NUM_LCD_DATA2,
-                                         PIN_NUM_LCD_DATA3,
-                                         false);
+    g_displayBus = new Arduino_ESP32QSPI(PIN_NUM_LCD_CS, PIN_NUM_LCD_PCLK, PIN_NUM_LCD_DATA0, PIN_NUM_LCD_DATA1, PIN_NUM_LCD_DATA2, PIN_NUM_LCD_DATA3, false);
     if (!g_displayBus)
     {
         Serial.println("ERROR: Failed to allocate display bus");
@@ -249,12 +245,8 @@ void setup()
             delay(1000);
         }
     }
-    g_outputDisplay = new Arduino_CO5300(g_displayBus,
-                                         PIN_NUM_LCD_RST,
-                                         0,
-                                         DISPLAY_WIDTH,
-                                         DISPLAY_HEIGHT,
-                                         6, 0, 6, 0);
+    g_outputDisplay = new Arduino_CO5300(g_displayBus,PIN_NUM_LCD_RST,0,DISPLAY_WIDTH,DISPLAY_HEIGHT,6, 0, 6, 0);
+    
     if (!g_outputDisplay)
     {
         Serial.println("ERROR: Failed to allocate display driver");
