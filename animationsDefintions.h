@@ -4,7 +4,7 @@
 
 #include "JpegAnimation.h"
 
-constexpr int kExplosionFrameCount = 30;
+constexpr int kExplosionFrameCount = 10;
 constexpr int kIntroFrameCount = 60;
 constexpr int kGameOverFrameCount = 60;
 constexpr int kYouWinFrameCount = 60;

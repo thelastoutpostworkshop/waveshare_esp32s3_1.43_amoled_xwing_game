@@ -75,7 +75,8 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
 static void playIntroAnimation();
 static void waitForTouchRelease();
 static void printBestTimeAt(int16_t x, int16_t y);
-static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY);
+static void printRoundScoreAt(int16_t x, int16_t y);
+static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY);
 static void playGameOverAnimation();
 static void playYouWinAnimation();
 static void startGameRound();
@@ -106,8 +107,12 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define INTRO_BEST_TEXT_POS_Y 305
 #define GAME_OVER_BEST_TEXT_POS_X 20
 #define GAME_OVER_BEST_TEXT_POS_Y 320
+#define GAME_OVER_SCORE_TEXT_POS_X 20
+#define GAME_OVER_SCORE_TEXT_POS_Y 360
 #define YOU_WIN_BEST_TEXT_POS_X 20
 #define YOU_WIN_BEST_TEXT_POS_Y 290
+#define YOU_WIN_SCORE_TEXT_POS_X 20
+#define YOU_WIN_SCORE_TEXT_POS_Y 330
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -859,6 +864,23 @@ static void printBestTimeAt(int16_t x, int16_t y)
     g_display->flush();
 }
 
+static void printRoundScoreAt(int16_t x, int16_t y)
+{
+    if (!g_display)
+        return;
+
+    g_display->setFont(&square_sans_serif_717pt7b);
+    g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Score:%lu", (unsigned long)g_score);
+
+    int16_t centeredX = calculateCenteredTextX(buf, x);
+    g_display->setCursor(centeredX, y);
+    g_display->print(buf);
+    g_display->flush();
+}
+
 static void waitForTouchRelease()
 {
     while (touchX != 0 || touchY != 0)
@@ -867,7 +889,7 @@ static void waitForTouchRelease()
     }
 }
 
-static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY)
+static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY)
 {
     if (!g_framebuffersReady || !g_display)
     {
@@ -900,6 +922,7 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
     int lastFrame = -1;
     bool animationFinished = false;
     bool bestPrinted = false;
+    bool scorePrinted = false;
 
     while (true)
     {
@@ -923,10 +946,18 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
             }
         }
 
-        if (animationFinished && !bestPrinted)
+        if (animationFinished && (!bestPrinted || !scorePrinted))
         {
-            printBestTimeAt(bestTextX, bestTextY);
-            bestPrinted = true;
+            if (!bestPrinted)
+            {
+                printBestTimeAt(bestTextX, bestTextY);
+                bestPrinted = true;
+            }
+            if (!scorePrinted)
+            {
+                printRoundScoreAt(scoreTextX, scoreTextY);
+                scorePrinted = true;
+            }
         }
 
         if (!animationFinished && g_touchTriggered)
@@ -941,6 +972,11 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
                 printBestTimeAt(bestTextX, bestTextY);
                 bestPrinted = true;
             }
+            if (!scorePrinted)
+            {
+                printRoundScoreAt(scoreTextX, scoreTextY);
+                scorePrinted = true;
+            }
             g_touchTriggered = false;
             break;
         }
@@ -951,6 +987,10 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
     if (!bestPrinted)
     {
         printBestTimeAt(bestTextX, bestTextY);
+    }
+    if (!scorePrinted)
+    {
+        printRoundScoreAt(scoreTextX, scoreTextY);
     }
 
     waitForTouchRelease();
@@ -963,12 +1003,20 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
 
 static void playGameOverAnimation()
 {
-    playBlockingAnimation(g_gameOverAnimation, GAME_OVER_BEST_TEXT_POS_X, GAME_OVER_BEST_TEXT_POS_Y);
+    playBlockingAnimation(g_gameOverAnimation,
+                          GAME_OVER_BEST_TEXT_POS_X,
+                          GAME_OVER_BEST_TEXT_POS_Y,
+                          GAME_OVER_SCORE_TEXT_POS_X,
+                          GAME_OVER_SCORE_TEXT_POS_Y);
 }
 
 static void playYouWinAnimation()
 {
-    playBlockingAnimation(g_youWinAnimation, YOU_WIN_BEST_TEXT_POS_X, YOU_WIN_BEST_TEXT_POS_Y);
+    playBlockingAnimation(g_youWinAnimation,
+                          YOU_WIN_BEST_TEXT_POS_X,
+                          YOU_WIN_BEST_TEXT_POS_Y,
+                          YOU_WIN_SCORE_TEXT_POS_X,
+                          YOU_WIN_SCORE_TEXT_POS_Y);
 }
 
 static void startGameRound()
