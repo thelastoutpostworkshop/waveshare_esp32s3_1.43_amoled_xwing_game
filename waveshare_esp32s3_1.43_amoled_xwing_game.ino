@@ -29,6 +29,15 @@
 #include "esp32-hal-psram.h"
 
 // Game instructions
+// Tilt and steady the X-Wing so it drifts over the target, 
+// tap when you’re lined up to score a hit, 
+// race the clock to land three hits, and chase faster times to earn a medal.
+//
+// Game goals
+#define ROUND_TARGET_HITS 3           // Number of hits to win before times run out
+#define ROUND_DURATION_SECONDS 20     // Time to score the number of hits in seconds
+#define ROUND_DURATION_MS (ROUND_DURATION_SECONDS * 1000U)
+
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
 #define ACCEL_SCALE 1.5f     // Tilt acceleration scale
 #define GYRO_SCALE 0.05f     // Gyro rotation influence
@@ -39,10 +48,6 @@
 // You can make the game harder by choosing a mode that is unatural to you
 #define XWING_DIRECTION_MODE 2
 
-// Game goals
-#define ROUND_TARGET_HITS 3           // Number of hits before times run out
-#define ROUND_DURATION_SECONDS 20     // Time to score hits in seconds
-#define ROUND_DURATION_MS (ROUND_DURATION_SECONDS * 1000U)
 
 JPEGDEC jpeg;
 
