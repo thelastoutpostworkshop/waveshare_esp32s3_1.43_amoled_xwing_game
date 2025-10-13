@@ -8,7 +8,7 @@ constexpr int kExplosionFrameCount = 10;
 constexpr int kIntroFrameCount = 30;
 constexpr int kGameOverFrameCount = 24;
 constexpr int kYouWinFrameCount = 17;
-constexpr int kBlinkFrameCount = 30;
+constexpr int kBlinkFrameCount = 15;
 
 extern const JpegAnimationFrame g_explosionFrames[kExplosionFrameCount];
 extern const JpegAnimationFrame g_introFrames[kIntroFrameCount];
