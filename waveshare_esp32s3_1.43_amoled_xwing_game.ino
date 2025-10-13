@@ -316,6 +316,7 @@ void setup()
     }
 }
 
+// Main loop for the game
 void loop()
 {
     bool bootPressed = bootButtonPressed();
