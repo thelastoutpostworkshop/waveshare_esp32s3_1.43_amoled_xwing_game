@@ -164,6 +164,7 @@ static uint32_t g_lastRoundTimeMs = 0;
 static volatile bool g_touchTriggered = false;
 static volatile uint16_t g_touchStartX = 0;
 static volatile uint16_t g_touchStartY = 0;
+static bool g_pendingWin = false;
 
 static float g_spritePosX = 0.0f;
 static float g_spritePosY = 0.0f;
@@ -320,7 +321,7 @@ void loop()
         return;
     }
 
-    if (!g_gameActive)
+    if (!g_gameActive && !g_pendingWin)
     {
         delay(16);
         return;
@@ -333,6 +334,7 @@ void loop()
         endRoundTimerPause();
         g_explosionAnimation.stop();
         g_lastRoundTimeMs = 0;
+        g_pendingWin = false;
         playGameOverAnimation();
         playIntroAnimation();
         startGameRound();
@@ -345,12 +347,21 @@ void loop()
     if (explosionWasActive && !g_explosionAnimation.isActive())
     {
         endRoundTimerPause();
+        if (g_pendingWin)
+        {
+            g_pendingWin = false;
+            g_gameActive = false;
+            playYouWinAnimation();
+            startGameRound();
+            renderFrame();
+            return;
+        }
     }
 
     updateSpritePosition();
     renderFrame();
 
-    if (g_gameActive && g_touchTriggered)
+    if (g_gameActive && g_touchTriggered && !g_pendingWin)
     {
         uint16_t touchXCopy = g_touchStartX;
         uint16_t touchYCopy = g_touchStartY;
@@ -392,12 +403,8 @@ void loop()
                         }
                     }
 
-                    g_gameActive = false;
-                    endRoundTimerPause();
-                    g_explosionAnimation.stop();
-                    playYouWinAnimation();
-                    startGameRound();
-                    renderFrame();
+                    g_pendingWin = true;
+                    g_touchTriggered = false;
                     return;
                 }
             }
@@ -1045,6 +1052,7 @@ static void startGameRound()
     g_gameActive = true;
     g_score = 0;
     g_lastRoundTimeMs = 0;
+    g_pendingWin = false;
 }
 
 static bool loadXWingSprite()
