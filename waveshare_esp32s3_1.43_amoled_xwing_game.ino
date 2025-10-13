@@ -4,15 +4,14 @@
 // Libraries to be installed
 #include "JPEGDEC.h"             // Install "JPEGDEC" library version 1.8.2
 #include <Arduino_GFX_Library.h> // Install "GFX Library for Arduino" version 1.6.2
-#include <Preferences.h>         // ESP32 NVS storage
 
 // Main header files included in this project
 #include "board_config.h"         // Waveshare ESP32-S3-Touch-AMOLED-1.43 pins & other configurations
 #include "FT3168.h"               // Capacitive Touch functions, included in the project
-#include "qmi8658c.h"             // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions
-#include "JpegAnimation.h"        // JPEG animation class
-#include "CanvasTypes.h"          // Canvas class
-#include "animationsDefintions.h" // Animation frame definitions
+#include "qmi8658c.h"             // QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope) functions, included in the project
+#include "JpegAnimation.h"        // JPEG animation class, included in the project
+#include "CanvasTypes.h"          // Canvas class, included in the project
+#include "animationsDefintions.h" // Animation frame definitions, included in the project
 
 // Game assets
 #include "animationsDefintions.h"              // Animation assets
@@ -22,6 +21,7 @@
 #include "fonts/square_sans_serif_717pt7b.h"   // Best score font
 
 // Header files helpers
+#include <Preferences.h>         // ESP32 NVS storage
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
