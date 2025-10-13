@@ -94,7 +94,8 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-// Game global variables, no need to change this, unless you redesign the game
+// Game global defines & variables, no need to change this, unless you redesign the game
+//
 JPEGDEC jpeg;
 
 // Touch global variables
