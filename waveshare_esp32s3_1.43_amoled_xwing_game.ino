@@ -372,7 +372,6 @@ void loop()
         g_lastRoundSetNewBest = false;
         g_pendingWin = false;
         playGameOverAnimation();
-        playIntroAnimation();
         startGameRound();
         renderFrame();
         return;
