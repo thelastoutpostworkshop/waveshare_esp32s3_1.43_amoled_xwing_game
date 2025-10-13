@@ -4,6 +4,7 @@
 // Libraries to be installed
 #include "JPEGDEC.h"             // Install "JPEGDEC" library version 1.8.2
 #include <Arduino_GFX_Library.h> // Install "GFX Library for Arduino" version 1.6.2
+#include <Preferences.h>         // ESP32 NVS storage
 
 // Main header files included in this project
 #include "board_config.h"         // Waveshare ESP32-S3-Touch-AMOLED-1.43 pins & other configurations
@@ -125,6 +126,10 @@ static uint16_t *g_staticBackground = nullptr;
 static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+static Preferences g_nvsPrefs;
+static constexpr const char *NVS_NAMESPACE = "xwing_game";
+static constexpr const char *NVS_BEST_MS_KEY = "best_ms";
+static bool g_nvsReady = false;
 
 static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, decodeJpegToBuffer);
 static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, decodeJpegToBuffer);
@@ -175,6 +180,17 @@ void setup()
         {
             delay(1000);
         }
+    }
+
+    if (g_nvsPrefs.begin(NVS_NAMESPACE, false))
+    {
+        g_bestRoundTimeMs = g_nvsPrefs.getUInt(NVS_BEST_MS_KEY, 0);
+        g_nvsReady = true;
+        Serial.println("NVS initialized for game data");
+    }
+    else
+    {
+        Serial.println("WARNING: Failed to initialize NVS storage");
     }
 
     g_displayBus = new Arduino_ESP32QSPI(PIN_NUM_LCD_CS,
@@ -356,7 +372,17 @@ void loop()
                     if (roundTimeMs == 0)
                         roundTimeMs = 1;
                     if (g_bestRoundTimeMs == 0 || roundTimeMs < g_bestRoundTimeMs)
+                    {
                         g_bestRoundTimeMs = roundTimeMs;
+                        if (g_nvsReady)
+                        {
+                            size_t written = g_nvsPrefs.putUInt(NVS_BEST_MS_KEY, g_bestRoundTimeMs);
+                            if (written == 0)
+                            {
+                                Serial.println("WARNING: Failed to save best score to NVS");
+                            }
+                        }
+                    }
 
                     g_gameActive = false;
                     endRoundTimerPause();
