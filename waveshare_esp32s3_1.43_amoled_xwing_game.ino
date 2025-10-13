@@ -275,6 +275,8 @@ void setup()
         Serial.println("ERROR: Failed to load X-Wing sprite");
     }
 
+    Serial.println("See the tutorial: ");
+
     playIntroAnimation();
 
     if (g_framebuffersReady && g_spriteReady)
