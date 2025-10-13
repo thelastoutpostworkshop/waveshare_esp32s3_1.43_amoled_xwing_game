@@ -79,6 +79,10 @@ static void playGameOverAnimation();
 static void playYouWinAnimation();
 static void startGameRound();
 static int formatSensorDisplayValue(float value);
+static void beginRoundTimerPause();
+static void endRoundTimerPause();
+static void resetRoundTimerPause();
+static uint32_t getRoundElapsedMs();
 static void updateSpritePosition();
 static void renderFrame();
 static void drawHud();
@@ -101,7 +105,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define GAME_OVER_BEST_TEXT_POS_X 20
 #define GAME_OVER_BEST_TEXT_POS_Y 320
 #define YOU_WIN_BEST_TEXT_POS_X 20
-#define YOU_WIN_BEST_TEXT_POS_Y 320
+#define YOU_WIN_BEST_TEXT_POS_Y 290
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -130,6 +134,9 @@ static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCoun
 static bool g_gameActive = false;
 static uint32_t g_roundStartMs = 0;
 static int g_roundHits = 0;
+static bool g_roundTimerPaused = false;
+static uint32_t g_roundPauseStartMs = 0;
+static uint32_t g_roundPauseAccumulatedMs = 0;
 
 static uint16_t *g_xWingBoldSprite = nullptr;
 static uint16_t *g_xWingFaintSprite = nullptr;
@@ -294,10 +301,11 @@ void loop()
         return;
     }
 
-    uint32_t elapsedMs = millis() - g_roundStartMs;
+    uint32_t elapsedMs = getRoundElapsedMs();
     if (elapsedMs >= ROUND_DURATION_MS)
     {
         g_gameActive = false;
+        endRoundTimerPause();
         g_explosionAnimation.stop();
         playGameOverAnimation();
         playIntroAnimation();
@@ -306,7 +314,13 @@ void loop()
         return;
     }
 
+    bool explosionWasActive = g_explosionAnimation.isActive();
     g_explosionAnimation.update();
+    if (explosionWasActive && !g_explosionAnimation.isActive())
+    {
+        endRoundTimerPause();
+    }
+
     updateSpritePosition();
     renderFrame();
 
@@ -329,18 +343,20 @@ void loop()
             {
                 ++g_score;
                 g_explosionAnimation.start(g_spriteDrawX, g_spriteDrawY);
+                beginRoundTimerPause();
                 g_spriteVelX = 0.0f;
                 g_spriteVelY = 0.0f;
                 ++g_roundHits;
                 if (g_roundHits >= ROUND_TARGET_HITS)
                 {
-                    uint32_t roundTimeMs = millis() - g_roundStartMs;
+                    uint32_t roundTimeMs = getRoundElapsedMs();
                     if (roundTimeMs == 0)
                         roundTimeMs = 1;
                     if (g_bestRoundTimeMs == 0 || roundTimeMs < g_bestRoundTimeMs)
                         g_bestRoundTimeMs = roundTimeMs;
 
                     g_gameActive = false;
+                    endRoundTimerPause();
                     g_explosionAnimation.stop();
                     playYouWinAnimation();
                     playIntroAnimation();
@@ -612,6 +628,46 @@ static int formatSensorDisplayValue(float value)
     return display;
 }
 
+static void beginRoundTimerPause()
+{
+    if (!g_roundTimerPaused)
+    {
+        g_roundTimerPaused = true;
+        g_roundPauseStartMs = millis();
+    }
+}
+
+static void endRoundTimerPause()
+{
+    if (g_roundTimerPaused)
+    {
+        uint32_t now = millis();
+        g_roundPauseAccumulatedMs += now - g_roundPauseStartMs;
+        g_roundTimerPaused = false;
+        g_roundPauseStartMs = 0;
+    }
+}
+
+static void resetRoundTimerPause()
+{
+    g_roundTimerPaused = false;
+    g_roundPauseStartMs = 0;
+    g_roundPauseAccumulatedMs = 0;
+}
+
+static uint32_t getRoundElapsedMs()
+{
+    uint32_t now = millis();
+    uint32_t paused = g_roundPauseAccumulatedMs;
+    if (g_roundTimerPaused)
+    {
+        paused += now - g_roundPauseStartMs;
+    }
+
+    uint32_t rawElapsed = now - g_roundStartMs;
+    return (rawElapsed >= paused) ? (rawElapsed - paused) : 0;
+}
+
 static void playIntroAnimation()
 {
     if (!g_framebuffersReady || !g_display)
@@ -863,11 +919,12 @@ static void playYouWinAnimation()
 
 static void startGameRound()
 {
+    g_explosionAnimation.stop();
+    resetRoundTimerPause();
     g_roundHits = 0;
     g_roundStartMs = millis();
     g_gameActive = true;
     g_score = 0;
-    g_explosionAnimation.stop();
 }
 
 static bool loadXWingSprite()
@@ -992,7 +1049,7 @@ static void drawHud()
     g_textCanvas.setCursor(SENSOR_POS_X, SENSOR_POS_Y);
     g_textCanvas.print(sensorText);
 
-    uint32_t elapsed = g_gameActive ? (millis() - g_roundStartMs) : 0;
+    uint32_t elapsed = g_gameActive ? getRoundElapsedMs() : 0;
     uint32_t remainingMs = (elapsed >= ROUND_DURATION_MS) ? 0 : (ROUND_DURATION_MS - elapsed);
     int remainingSeconds = (int)(remainingMs / 1000U);
     if (remainingSeconds > 999)
