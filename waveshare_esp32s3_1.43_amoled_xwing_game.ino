@@ -18,7 +18,7 @@
 #include "images/image_assets.h"               // Image assets
 #include "fonts/Aurebesh_Bold25pt7b.h"         // Score and timer font
 #include "fonts/Aurebesh_Bold7pt7b.h"          // Sensor font
-#include "fonts/Arista_Sans20pt7b.h"   // Best score font
+#include "fonts/square_sans_serif_717pt7b.h"   // Best score font
 
 // Header files helpers
 #include "esp_log.h"
@@ -85,7 +85,7 @@ static void drawHud();
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor = 0x0000);
 int jpegDrawCallback(JPEGDRAW *pDraw);
 
-// Game global variables, no need to change this
+// Game global variables, no need to change this, unless you redesign the game
 #define SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD 6 // Raise to keep darker pixels opaque; lower to treat more near-black shades as transparent
 #define SCORE_POS_X 70                         // Horizontal position for score text
 #define SCORE_POS_Y 370                        // Vertical baseline for score text
@@ -97,7 +97,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
 #define INTRO_BEST_TEXT_POS_X 20
-#define INTRO_BEST_TEXT_POS_Y 315
+#define INTRO_BEST_TEXT_POS_Y 305
 #define GAME_OVER_BEST_TEXT_POS_X 20
 #define GAME_OVER_BEST_TEXT_POS_Y 420
 #define YOU_WIN_BEST_TEXT_POS_X 20
@@ -723,7 +723,7 @@ static void printBestTimeAt(int16_t x, int16_t y)
     if (!g_display)
         return;
 
-    g_display->setFont(&Arista_Sans20pt7b);
+    g_display->setFont(&square_sans_serif_717pt7b);
     g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
     g_display->setCursor(x, y);
 
