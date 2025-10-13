@@ -74,9 +74,9 @@ static bool buildStaticBackground();
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions = 0);
 static void playIntroAnimation();
 static void waitForTouchRelease();
-static void printBestTimeAt(int16_t x, int16_t y);
+static void printBestTimeAt(int16_t x, int16_t y, bool highlightNewBest = false);
 static void printRoundScoreAt(int16_t x, int16_t y);
-static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY);
+static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY, bool highlightNewBest);
 static void playGameOverAnimation();
 static void playYouWinAnimation();
 static void startGameRound();
@@ -122,6 +122,7 @@ static Arduino_Canvas *g_display = nullptr;
 static constexpr uint16_t COLOR_BLACK = 0x0000;
 static constexpr uint16_t COLOR_WHITE = 0xFFFF;
 static constexpr uint16_t COLOR_RED = 0xF800;
+static constexpr uint16_t COLOR_GREEN = 0x07E0;
 
 static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
 static int g_frontBufferIndex = 0;
@@ -161,6 +162,7 @@ static int g_currentLeeway = 0;
 static uint32_t g_score = 0;
 static uint32_t g_bestRoundTimeMs = 0;
 static uint32_t g_lastRoundTimeMs = 0;
+static bool g_lastRoundSetNewBest = false;
 static volatile bool g_touchTriggered = false;
 static volatile uint16_t g_touchStartX = 0;
 static volatile uint16_t g_touchStartY = 0;
@@ -334,6 +336,7 @@ void loop()
         endRoundTimerPause();
         g_explosionAnimation.stop();
         g_lastRoundTimeMs = 0;
+        g_lastRoundSetNewBest = false;
         g_pendingWin = false;
         playGameOverAnimation();
         playIntroAnimation();
@@ -393,6 +396,7 @@ void loop()
                     if (g_bestRoundTimeMs == 0 || roundTimeMs < g_bestRoundTimeMs)
                     {
                         g_bestRoundTimeMs = roundTimeMs;
+                        g_lastRoundSetNewBest = true;
                         if (g_nvsReady)
                         {
                             size_t written = g_nvsPrefs.putUInt(NVS_BEST_MS_KEY, g_bestRoundTimeMs);
@@ -401,6 +405,10 @@ void loop()
                                 Serial.println("WARNING: Failed to save best score to NVS");
                             }
                         }
+                    }
+                    else
+                    {
+                        g_lastRoundSetNewBest = false;
                     }
 
                     g_pendingWin = true;
@@ -842,16 +850,22 @@ static void playIntroAnimation()
     g_touchStartY = 0;
 }
 
-static void printBestTimeAt(int16_t x, int16_t y)
+static void printBestTimeAt(int16_t x, int16_t y, bool highlightNewBest)
 {
     if (!g_display)
         return;
 
+    bool showNewBest = highlightNewBest && g_lastRoundSetNewBest;
+
     g_display->setFont(&square_sans_serif_717pt7b);
-    g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
+    g_display->setTextColor(showNewBest ? COLOR_GREEN : COLOR_WHITE, COLOR_BLACK);
 
     char buf[32];
-    if (g_bestRoundTimeMs == 0)
+    if (showNewBest)
+    {
+        snprintf(buf, sizeof(buf), "New best");
+    }
+    else if (g_bestRoundTimeMs == 0)
     {
         snprintf(buf, sizeof(buf), "Best Score:--.--");
     }
@@ -872,6 +886,10 @@ static void printBestTimeAt(int16_t x, int16_t y)
     g_display->setCursor(centeredX, y);
     g_display->print(buf);
     g_display->flush();
+    if (showNewBest)
+    {
+        g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
+    }
 }
 
 static void printRoundScoreAt(int16_t x, int16_t y)
@@ -913,7 +931,7 @@ static void waitForTouchRelease()
     }
 }
 
-static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY)
+static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY, bool highlightNewBest)
 {
     if (!g_framebuffersReady || !g_display)
     {
@@ -974,7 +992,7 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
         {
             if (!bestPrinted)
             {
-                printBestTimeAt(bestTextX, bestTextY);
+                printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
                 bestPrinted = true;
             }
             if (!scorePrinted)
@@ -993,7 +1011,7 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
         {
             if (!bestPrinted)
             {
-                printBestTimeAt(bestTextX, bestTextY);
+                printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
                 bestPrinted = true;
             }
             if (!scorePrinted)
@@ -1010,7 +1028,7 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
 
     if (!bestPrinted)
     {
-        printBestTimeAt(bestTextX, bestTextY);
+        printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
     }
     if (!scorePrinted)
     {
@@ -1031,7 +1049,8 @@ static void playGameOverAnimation()
                           GAME_OVER_BEST_TEXT_POS_X,
                           GAME_OVER_BEST_TEXT_POS_Y,
                           GAME_OVER_SCORE_TEXT_POS_X,
-                          GAME_OVER_SCORE_TEXT_POS_Y);
+                          GAME_OVER_SCORE_TEXT_POS_Y,
+                          false);
 }
 
 static void playYouWinAnimation()
@@ -1040,7 +1059,8 @@ static void playYouWinAnimation()
                           YOU_WIN_BEST_TEXT_POS_X,
                           YOU_WIN_BEST_TEXT_POS_Y,
                           YOU_WIN_SCORE_TEXT_POS_X,
-                          YOU_WIN_SCORE_TEXT_POS_Y);
+                          YOU_WIN_SCORE_TEXT_POS_Y,
+                          true);
 }
 
 static void startGameRound()
@@ -1052,6 +1072,7 @@ static void startGameRound()
     g_gameActive = true;
     g_score = 0;
     g_lastRoundTimeMs = 0;
+    g_lastRoundSetNewBest = false;
     g_pendingWin = false;
 }
 
