@@ -18,7 +18,7 @@
 #include "images/image_assets.h"               // Image assets
 #include "fonts/Aurebesh_Bold25pt7b.h"         // Score and timer font
 #include "fonts/Aurebesh_Bold7pt7b.h"          // Sensor font
-#include "fonts/square_sans_serif_728pt7b.h"   // Best score font
+#include "fonts/Arista_Sans20pt7b.h"   // Best score font
 
 // Header files helpers
 #include "esp_log.h"
@@ -715,15 +715,14 @@ static void printBestTimeAt(int16_t x, int16_t y)
     if (!g_display)
         return;
 
-    g_display->setFont(&square_sans_serif_728pt7b);
-    g_display->setTextSize(1);
+    g_display->setFont(&Arista_Sans20pt7b);
     g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
     g_display->setCursor(x, y);
 
     char buf[32];
     if (g_bestRoundTimeMs == 0)
     {
-        snprintf(buf, sizeof(buf), "BEST:--.--");
+        snprintf(buf, sizeof(buf), "Best Score:--.--");
     }
     else
     {
@@ -735,7 +734,7 @@ static void printBestTimeAt(int16_t x, int16_t y)
             secs = 999U;
             hundredths = 99U;
         }
-        snprintf(buf, sizeof(buf), "BEST:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
+        snprintf(buf, sizeof(buf), "Best Score:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
     }
 
     g_display->print(buf);
