@@ -126,8 +126,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define YOU_WIN_BEST_TEXT_POS_Y 290
 #define YOU_WIN_SCORE_TEXT_POS_X 20
 #define YOU_WIN_SCORE_TEXT_POS_Y 330
-#define MEDAL_ANIM_POS_X 160
-#define MEDAL_ANIM_POS_Y 140
+#define MEDAL_ANIM_POS_X 350
+#define MEDAL_ANIM_POS_Y 230
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -966,6 +966,87 @@ static void printRoundScoreAt(int16_t x, int16_t y)
     g_display->flush();
 }
 
+static void drawVictoryTextOverlay(uint16_t *buffer,
+                                   int16_t bestX,
+                                   int16_t bestY,
+                                   int16_t scoreX,
+                                   int16_t scoreY,
+                                   bool drawBest,
+                                   bool highlightNewBest,
+                                   bool drawScore)
+{
+    if (!buffer || !g_textCanvas.getFramebuffer())
+        return;
+
+    g_textCanvas.fillScreen(0x0000);
+
+    if (drawBest)
+    {
+        bool showNewBest = highlightNewBest && g_lastRoundSetNewBest;
+        g_textCanvas.setFont(&square_sans_serif_717pt7b);
+        g_textCanvas.setTextColor(showNewBest ? COLOR_GREEN : COLOR_WHITE, 0x0000);
+
+        char buf[32];
+        if (showNewBest)
+        {
+            snprintf(buf, sizeof(buf), "New best");
+        }
+        else if (g_bestRoundTimeMs == 0)
+        {
+            snprintf(buf, sizeof(buf), "Best Score:--.--");
+        }
+        else
+        {
+            uint32_t ms = g_bestRoundTimeMs;
+            uint32_t secs = ms / 1000U;
+            uint32_t hundredths = (ms % 1000U) / 10U;
+            if (secs > 999U)
+            {
+                secs = 999U;
+                hundredths = 99U;
+            }
+            snprintf(buf, sizeof(buf), "Best Score:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
+        }
+
+        int16_t centeredBestX = calculateCenteredTextX(buf, bestX);
+        g_textCanvas.setCursor(centeredBestX, bestY);
+        g_textCanvas.print(buf);
+        if (showNewBest)
+        {
+            g_textCanvas.setTextColor(COLOR_WHITE, 0x0000);
+        }
+    }
+
+    if (drawScore)
+    {
+        g_textCanvas.setFont(&square_sans_serif_717pt7b);
+        g_textCanvas.setTextColor(COLOR_WHITE, 0x0000);
+
+        char buf[32];
+        if (g_lastRoundTimeMs == 0)
+        {
+            snprintf(buf, sizeof(buf), "Your Time:--.--");
+        }
+        else
+        {
+            uint32_t secs = g_lastRoundTimeMs / 1000U;
+            uint32_t hundredths = (g_lastRoundTimeMs % 1000U) / 10U;
+            if (secs > 999U)
+            {
+                secs = 999U;
+                hundredths = 99U;
+            }
+            snprintf(buf, sizeof(buf), "Your Time:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
+        }
+
+        int16_t centeredScoreX = calculateCenteredTextX(buf, scoreX);
+        g_textCanvas.setCursor(centeredScoreX, scoreY);
+        g_textCanvas.print(buf);
+    }
+
+    blitCanvasToBuffer(g_textCanvas, buffer, 0x0000);
+}
+
 static bool bootButtonPressed()
 {
     int level = digitalRead(PIN_NUM_BOOT);
@@ -1142,7 +1223,7 @@ static void playBlockingAnimation(JpegAnimation &animation,
     bool loopStarted = false;
     int loopLastFrame = -1;
     uint16_t *loopBaseBuffer = nullptr;
-    bool loopBaseCaptured = false;
+    bool overlayActive = false;
 
     while (true)
     {
@@ -1154,6 +1235,17 @@ static void playBlockingAnimation(JpegAnimation &animation,
             {
                 if (animation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
+                    if (overlayActive)
+                    {
+                        drawVictoryTextOverlay(buffer,
+                                               bestTextX,
+                                               bestTextY,
+                                               scoreTextX,
+                                               scoreTextY,
+                                               bestPrinted,
+                                               highlightNewBest,
+                                               scorePrinted);
+                    }
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
                     g_display->flush();
                 }
@@ -1163,19 +1255,6 @@ static void playBlockingAnimation(JpegAnimation &animation,
             if (!animation.isActive())
             {
                 animationFinished = true;
-                if (loopAnimation && !loopBaseCaptured)
-                {
-                    if (g_framebufferBytes)
-                    {
-                        uint16_t *candidate = g_frameBuffers[1 - g_frontBufferIndex];
-                        if (candidate && candidate != buffer)
-                        {
-                            memcpy(candidate, buffer, g_framebufferBytes);
-                            loopBaseBuffer = candidate;
-                        }
-                    }
-                    loopBaseCaptured = true;
-                }
             }
         }
 
@@ -1183,13 +1262,25 @@ static void playBlockingAnimation(JpegAnimation &animation,
         {
             if (!bestPrinted)
             {
-                printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
                 bestPrinted = true;
             }
             if (!scorePrinted)
             {
-                printRoundScoreAt(scoreTextX, scoreTextY);
                 scorePrinted = true;
+            }
+            overlayActive = bestPrinted || scorePrinted;
+            if (overlayActive)
+            {
+                drawVictoryTextOverlay(buffer,
+                                       bestTextX,
+                                       bestTextY,
+                                       scoreTextX,
+                                       scoreTextY,
+                                       bestPrinted,
+                                       highlightNewBest,
+                                       scorePrinted);
+                g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                g_display->flush();
             }
         }
 
@@ -1208,22 +1299,40 @@ static void playBlockingAnimation(JpegAnimation &animation,
                 loopLastFrame = -1;
             }
 
+            if (!loopBaseBuffer && g_framebufferBytes)
+            {
+                uint16_t *candidate = g_frameBuffers[1 - g_frontBufferIndex];
+                if (candidate && candidate != buffer)
+                {
+                    memcpy(candidate, buffer, g_framebufferBytes);
+                    loopBaseBuffer = candidate;
+                }
+            }
+
+            if (loopBaseBuffer && buffer && g_framebufferBytes)
+            {
+                memcpy(buffer, loopBaseBuffer, g_framebufferBytes);
+            }
+
             loopAnimation->update();
             int loopFrame = loopAnimation->currentFrame();
             if (loopFrame != loopLastFrame)
             {
-                if (loopBaseBuffer && buffer && g_framebufferBytes)
-                {
-                    memcpy(buffer, loopBaseBuffer, g_framebufferBytes);
-                }
                 if (loopAnimation->render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
+                    if (overlayActive)
+                    {
+                        drawVictoryTextOverlay(buffer,
+                                               bestTextX,
+                                               bestTextY,
+                                               scoreTextX,
+                                               scoreTextY,
+                                               bestPrinted,
+                                               highlightNewBest,
+                                               scorePrinted);
+                    }
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
                     g_display->flush();
-                    if (bestPrinted)
-                        printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
-                    if (scorePrinted)
-                        printRoundScoreAt(scoreTextX, scoreTextY);
                 }
                 loopLastFrame = loopFrame;
             }
@@ -1236,15 +1345,26 @@ static void playBlockingAnimation(JpegAnimation &animation,
         }
         else if (animationFinished && g_touchTriggered)
         {
-            if (!bestPrinted)
+            if (!bestPrinted || !scorePrinted)
             {
-                printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
-                bestPrinted = true;
-            }
-            if (!scorePrinted)
-            {
-                printRoundScoreAt(scoreTextX, scoreTextY);
-                scorePrinted = true;
+                if (!bestPrinted)
+                    bestPrinted = true;
+                if (!scorePrinted)
+                    scorePrinted = true;
+                overlayActive = bestPrinted || scorePrinted;
+                if (overlayActive)
+                {
+                    drawVictoryTextOverlay(buffer,
+                                           bestTextX,
+                                           bestTextY,
+                                           scoreTextX,
+                                           scoreTextY,
+                                           bestPrinted,
+                                           highlightNewBest,
+                                           scorePrinted);
+                    g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                    g_display->flush();
+                }
             }
             g_touchTriggered = false;
             break;
@@ -1253,13 +1373,27 @@ static void playBlockingAnimation(JpegAnimation &animation,
         delay(16);
     }
 
-    if (!bestPrinted)
+    if (!bestPrinted || !scorePrinted)
     {
-        printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
+        if (!bestPrinted)
+            bestPrinted = true;
+        if (!scorePrinted)
+            scorePrinted = true;
+        overlayActive = bestPrinted || scorePrinted;
     }
-    if (!scorePrinted)
+
+    if (overlayActive)
     {
-        printRoundScoreAt(scoreTextX, scoreTextY);
+        drawVictoryTextOverlay(buffer,
+                               bestTextX,
+                               bestTextY,
+                               scoreTextX,
+                               scoreTextY,
+                               bestPrinted,
+                               highlightNewBest,
+                               scorePrinted);
+        g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+        g_display->flush();
     }
 
     waitForTouchRelease();
