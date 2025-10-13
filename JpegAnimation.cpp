@@ -4,12 +4,10 @@
 
 JpegAnimation::JpegAnimation(const JpegAnimationFrame *frames,
                              int frameCount,
-                             uint32_t frameDelayMs,
                              FrameDecoder decoder,
                              int decodeOptions)
     : m_frames(frames),
       m_frameCount(frameCount),
-      m_frameDelayMs(frameDelayMs),
       m_decoder(decoder),
       m_decodeOptions(decodeOptions)
 {
@@ -24,7 +22,6 @@ void JpegAnimation::start(int x, int y)
     m_frameIndex = 0;
     m_posX = x;
     m_posY = y;
-    m_nextFrameMs = millis() + m_frameDelayMs;
 }
 
 void JpegAnimation::stop()
@@ -37,14 +34,9 @@ void JpegAnimation::update()
     if (!m_active)
         return;
 
-    uint32_t now = millis();
-    if ((int32_t)(now - m_nextFrameMs) < 0)
-        return;
-
     if (m_frameIndex + 1 < m_frameCount)
     {
         ++m_frameIndex;
-        m_nextFrameMs = now + m_frameDelayMs;
     }
     else
     {
@@ -76,11 +68,6 @@ bool JpegAnimation::render(uint16_t *dest, int pitch, int bufferHeight) const
 bool JpegAnimation::isActive() const
 {
     return m_active;
-}
-
-void JpegAnimation::setFrameDelay(uint32_t delayMs)
-{
-    m_frameDelayMs = delayMs;
 }
 
 void JpegAnimation::setDecodeOptions(int options)

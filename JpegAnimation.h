@@ -25,7 +25,6 @@ public:
 
     JpegAnimation(const JpegAnimationFrame *frames,
                   int frameCount,
-                  uint32_t frameDelayMs,
                   FrameDecoder decoder,
                   int decodeOptions = 0);
 
@@ -34,14 +33,12 @@ public:
     void update();
     bool render(uint16_t *dest, int pitch, int bufferHeight) const;
     bool isActive() const;
-    void setFrameDelay(uint32_t delayMs);
     void setDecodeOptions(int options);
     int currentFrame() const;
 
 private:
     const JpegAnimationFrame *m_frames = nullptr;
     int m_frameCount = 0;
-    uint32_t m_frameDelayMs = 0;
     FrameDecoder m_decoder = nullptr;
     int m_decodeOptions = 0;
     bool m_active = false;

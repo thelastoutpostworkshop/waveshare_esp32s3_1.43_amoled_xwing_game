@@ -106,7 +106,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
 static Arduino_DataBus *g_displayBus = nullptr;
-static Arduino_CO5300 *g_display = nullptr;
+static Arduino_CO5300 *g_outputDisplay = nullptr;
+static Arduino_Canvas *g_display = nullptr;
 static constexpr uint16_t COLOR_BLACK = 0x0000;
 static constexpr uint16_t COLOR_WHITE = 0xFFFF;
 static constexpr uint16_t COLOR_RED = 0xF800;
@@ -120,16 +121,11 @@ static bool g_backgroundReady = false;
 static size_t g_framebufferBytes = 0;
 static PSRAMCanvas16 g_textCanvas(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-static constexpr uint32_t INTRO_FRAME_DELAY_MS = 66;      // Roughly 15 FPS for intro animation
-static constexpr uint32_t BLINK_FRAME_DELAY_MS = 80;      // Looping blink cadence
-static constexpr uint32_t GAME_OVER_FRAME_DELAY_MS = 66;  // Roughly 15 FPS for game-over animation
-static constexpr uint32_t YOU_WIN_FRAME_DELAY_MS = 66;    // Roughly 15 FPS for win animation
-static constexpr uint32_t EXPLOSION_FRAME_DELAY_MS = 50;  // Explosion animation speed
-static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, INTRO_FRAME_DELAY_MS, decodeJpegToBuffer);
-static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, BLINK_FRAME_DELAY_MS, decodeJpegToBuffer);
-static JpegAnimation g_gameOverAnimation(g_gameOverFrames, kGameOverFrameCount, GAME_OVER_FRAME_DELAY_MS, decodeJpegToBuffer);
-static JpegAnimation g_youWinAnimation(g_youWinFrames, kYouWinFrameCount, YOU_WIN_FRAME_DELAY_MS, decodeJpegToBuffer);
-static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, EXPLOSION_FRAME_DELAY_MS, decodeJpegToBuffer);
+static JpegAnimation g_introAnimation(g_introFrames, kIntroFrameCount, decodeJpegToBuffer);
+static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, decodeJpegToBuffer);
+static JpegAnimation g_gameOverAnimation(g_gameOverFrames, kGameOverFrameCount, decodeJpegToBuffer);
+static JpegAnimation g_youWinAnimation(g_youWinFrames, kYouWinFrameCount, decodeJpegToBuffer);
+static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, decodeJpegToBuffer);
 
 static bool g_gameActive = false;
 static uint32_t g_roundStartMs = 0;
@@ -178,7 +174,8 @@ void setup()
                                          PIN_NUM_LCD_DATA0,
                                          PIN_NUM_LCD_DATA1,
                                          PIN_NUM_LCD_DATA2,
-                                         PIN_NUM_LCD_DATA3);
+                                         PIN_NUM_LCD_DATA3,
+                                         false);
     if (!g_displayBus)
     {
         Serial.println("ERROR: Failed to allocate display bus");
@@ -187,13 +184,22 @@ void setup()
             delay(1000);
         }
     }
-    g_display = new Arduino_CO5300(g_displayBus,
-                                   PIN_NUM_LCD_RST,
-                                   0,
-                                   DISPLAY_WIDTH,
-                                   DISPLAY_HEIGHT,
-                                   6, 0, 6, 0);
+    g_outputDisplay = new Arduino_CO5300(g_displayBus,
+                                         PIN_NUM_LCD_RST,
+                                         0,
+                                         DISPLAY_WIDTH,
+                                         DISPLAY_HEIGHT,
+                                         6, 0, 6, 0);
+    if (!g_outputDisplay)
+    {
+        Serial.println("ERROR: Failed to allocate display driver");
+        while (true)
+        {
+            delay(1000);
+        }
+    }
 
+    g_display = new Arduino_Canvas(DISPLAY_WIDTH, DISPLAY_HEIGHT, g_outputDisplay);
     if (!g_display || !g_display->begin(BUS_SPEED))
     {
         Serial.println("Display initialization failed!");
@@ -203,8 +209,9 @@ void setup()
         }
     }
     g_display->setRotation(0);
-    g_display->fillScreen(0x0000);
-    Serial.println("Display initialized (Arduino_GFX CO5300)");
+    g_display->fillScreen(COLOR_BLACK);
+    g_display->flush();
+    Serial.println("Display initialized (Arduino_GFX Canvas CO5300)");
 
     Touch_Init(); // Init the Touch Controller
 
@@ -649,6 +656,7 @@ static void playIntroAnimation()
                 if (g_introAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                    g_display->flush();
                 }
                 lastIntroFrame = currentFrame;
             }
@@ -682,6 +690,7 @@ static void playIntroAnimation()
                 if (g_blinkAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                    g_display->flush();
                     printBestTimeAt(INTRO_BEST_TEXT_POS_X, INTRO_BEST_TEXT_POS_Y);
                 }
                 lastBlinkFrame = blinkFrame;
@@ -738,6 +747,7 @@ static void printBestTimeAt(int16_t x, int16_t y)
     }
 
     g_display->print(buf);
+    g_display->flush();
 }
 
 static void waitForTouchRelease()
@@ -793,6 +803,7 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
                 if (animation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                    g_display->flush();
                 }
                 lastFrame = currentFrame;
             }
@@ -1095,6 +1106,7 @@ static void renderFrame()
     if (g_display)
     {
         g_display->draw16bitBeRGBBitmap(0, 0, backBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+        g_display->flush();
         g_frontBufferIndex = backBufferIndex;
     }
     else
@@ -1133,6 +1145,10 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
     if (!decoded)
     {
         printJpegError("Failed to decode JPEG image", jpeg.getLastError());
+    }
+    else if (g_display)
+    {
+        g_display->flush();
     }
 
     jpeg.close();
