@@ -242,7 +242,7 @@ void setup()
     g_display = new Arduino_Canvas(DISPLAY_WIDTH, DISPLAY_HEIGHT, g_outputDisplay);
     if (!g_display || !g_display->begin(BUS_SPEED))
     {
-        Serial.println("Display initialization failed!");
+        Serial.println("Display initialization failed; cannot continue");
         while (true)
         {
             delay(1000);
@@ -267,36 +267,38 @@ void setup()
     // Create the task to read QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
     xTaskCreatePinnedToCore(imu_task, "imu", 4096, NULL, 2, NULL, 0);
 
+    // Buffers initialization, required for the animations
     g_framebuffersReady = initFramebuffers();
     if (!g_framebuffersReady)
     {
-        Serial.println("ERROR: Failed to allocate framebuffers; animation disabled");
+        Serial.println("ERROR: Failed to allocate framebuffers; cannot continue");
+        while (true)
+        {
+        }
     }
-
     if (g_framebuffersReady)
     {
         g_backgroundReady = buildStaticBackground();
         if (!g_backgroundReady)
         {
-            Serial.println("WARNING: Static background not available; falling back to solid color");
+            Serial.println("ERROR: Failed to allocate Static background; cannot continue");
+            while (true)
+            {
+            }
         }
     }
-
     if (!g_textCanvas.begin())
     {
-        Serial.println("ERROR: Failed to allocate text canvas");
-    }
-    else
-    {
-        g_textCanvas.setTextWrap(false);
-        g_textCanvas.setTextSize(1);
-        g_textCanvas.setRotation(0);
+        Serial.println("ERROR: Failed to allocate text canvas; cannot continue");
+        while (true)
+        {
+        }
     }
 
     g_spriteReady = loadXWingSprite();
     if (!g_spriteReady)
     {
-        Serial.println("ERROR: Failed to load X-Wing sprite");
+        Serial.println("ERROR: Failed to load X-Wing sprite; cannot continue");
     }
 
     Serial.println("See the tutorial: ");
