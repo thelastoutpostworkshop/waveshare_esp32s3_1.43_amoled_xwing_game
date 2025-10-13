@@ -101,7 +101,7 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define GAME_OVER_BEST_TEXT_POS_X 20
 #define GAME_OVER_BEST_TEXT_POS_Y 320
 #define YOU_WIN_BEST_TEXT_POS_X 20
-#define YOU_WIN_BEST_TEXT_POS_Y 430
+#define YOU_WIN_BEST_TEXT_POS_Y 320
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
