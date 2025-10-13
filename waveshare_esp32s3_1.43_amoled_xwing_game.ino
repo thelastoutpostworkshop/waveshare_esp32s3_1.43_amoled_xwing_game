@@ -236,26 +236,9 @@ void setup()
         Serial.println("WARNING: Failed to initialize NVS storage");
     }
 
+    // Display controller setup & initialization
     g_displayBus = new Arduino_ESP32QSPI(PIN_NUM_LCD_CS, PIN_NUM_LCD_PCLK, PIN_NUM_LCD_DATA0, PIN_NUM_LCD_DATA1, PIN_NUM_LCD_DATA2, PIN_NUM_LCD_DATA3, false);
-    if (!g_displayBus)
-    {
-        Serial.println("ERROR: Failed to allocate display bus");
-        while (true)
-        {
-            delay(1000);
-        }
-    }
-    g_outputDisplay = new Arduino_CO5300(g_displayBus,PIN_NUM_LCD_RST,0,DISPLAY_WIDTH,DISPLAY_HEIGHT,6, 0, 6, 0);
-    
-    if (!g_outputDisplay)
-    {
-        Serial.println("ERROR: Failed to allocate display driver");
-        while (true)
-        {
-            delay(1000);
-        }
-    }
-
+    g_outputDisplay = new Arduino_CO5300(g_displayBus, PIN_NUM_LCD_RST, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 6, 0, 6, 0);
     g_display = new Arduino_Canvas(DISPLAY_WIDTH, DISPLAY_HEIGHT, g_outputDisplay);
     if (!g_display || !g_display->begin(BUS_SPEED))
     {
@@ -265,30 +248,22 @@ void setup()
             delay(1000);
         }
     }
-    g_display->setRotation(0);
+    g_display->setRotation(0); // Do not change the screen orientation, the display driver do not like it!
     g_display->fillScreen(COLOR_BLACK);
     g_display->flush();
     Serial.println("Display initialized (Arduino_GFX Canvas CO5300)");
 
-    Touch_Init(); // Init the Touch Controller
+    // Touch Controller initialization
+    Touch_Init();
 
-    // Initialize QMI8658 6-axis IMU
+    // QMI8658 6-axis IMU initialization
     Serial.println("QMI8658 6-axis IMU initialization");
     qmi8658_init();
     delay(1000); // Do not change this delay, it is required by the QMI8658
 
     // Create a task to read touch events
-    if (xTaskCreatePinnedToCore(
-            touchTask,
-            "TouchTask",
-            4096,
-            nullptr,
-            1,
-            &touchTaskHandle,
-            0) != pdPASS)
-    {
-        Serial.println("ERROR: Failed to create TouchTask");
-    }
+    xTaskCreatePinnedToCore(touchTask, "TouchTask", 4096, nullptr, 1, &touchTaskHandle, 0);
+
     // Create the task to read QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
     xTaskCreatePinnedToCore(imu_task, "imu", 4096, NULL, 2, NULL, 0);
 
