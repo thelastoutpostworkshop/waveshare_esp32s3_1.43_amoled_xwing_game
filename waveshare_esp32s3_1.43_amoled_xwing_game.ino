@@ -359,7 +359,6 @@ void loop()
                     endRoundTimerPause();
                     g_explosionAnimation.stop();
                     playYouWinAnimation();
-                    playIntroAnimation();
                     startGameRound();
                     renderFrame();
                     return;
