@@ -160,6 +160,7 @@ static int g_shipCenterY = DISPLAY_HEIGHT / 2;
 static int g_currentLeeway = 0;
 static uint32_t g_score = 0;
 static uint32_t g_bestRoundTimeMs = 0;
+static uint32_t g_lastRoundTimeMs = 0;
 static volatile bool g_touchTriggered = false;
 static volatile uint16_t g_touchStartX = 0;
 static volatile uint16_t g_touchStartY = 0;
@@ -331,6 +332,7 @@ void loop()
         g_gameActive = false;
         endRoundTimerPause();
         g_explosionAnimation.stop();
+        g_lastRoundTimeMs = 0;
         playGameOverAnimation();
         playIntroAnimation();
         startGameRound();
@@ -376,6 +378,7 @@ void loop()
                     uint32_t roundTimeMs = getRoundElapsedMs();
                     if (roundTimeMs == 0)
                         roundTimeMs = 1;
+                    g_lastRoundTimeMs = roundTimeMs;
                     if (g_bestRoundTimeMs == 0 || roundTimeMs < g_bestRoundTimeMs)
                     {
                         g_bestRoundTimeMs = roundTimeMs;
@@ -873,7 +876,21 @@ static void printRoundScoreAt(int16_t x, int16_t y)
     g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "Score:%lu", (unsigned long)g_score);
+    if (g_lastRoundTimeMs == 0)
+    {
+        snprintf(buf, sizeof(buf), "Time:--.--");
+    }
+    else
+    {
+        uint32_t secs = g_lastRoundTimeMs / 1000U;
+        uint32_t hundredths = (g_lastRoundTimeMs % 1000U) / 10U;
+        if (secs > 999U)
+        {
+            secs = 999U;
+            hundredths = 99U;
+        }
+        snprintf(buf, sizeof(buf), "Time:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
+    }
 
     int16_t centeredX = calculateCenteredTextX(buf, x);
     g_display->setCursor(centeredX, y);
@@ -1027,6 +1044,7 @@ static void startGameRound()
     g_roundStartMs = millis();
     g_gameActive = true;
     g_score = 0;
+    g_lastRoundTimeMs = 0;
 }
 
 static bool loadXWingSprite()
