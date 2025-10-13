@@ -111,9 +111,9 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define INTRO_BEST_TEXT_POS_X 20
 #define INTRO_BEST_TEXT_POS_Y 305
 #define GAME_OVER_BEST_TEXT_POS_X 20
-#define GAME_OVER_BEST_TEXT_POS_Y 320
+#define GAME_OVER_BEST_TEXT_POS_Y 300
 #define GAME_OVER_SCORE_TEXT_POS_X 20
-#define GAME_OVER_SCORE_TEXT_POS_Y 360
+#define GAME_OVER_SCORE_TEXT_POS_Y 330
 #define YOU_WIN_BEST_TEXT_POS_X 20
 #define YOU_WIN_BEST_TEXT_POS_Y 290
 #define YOU_WIN_SCORE_TEXT_POS_X 20
@@ -935,7 +935,7 @@ static void printRoundScoreAt(int16_t x, int16_t y)
     char buf[32];
     if (g_lastRoundTimeMs == 0)
     {
-        snprintf(buf, sizeof(buf), "Time:--.--");
+        snprintf(buf, sizeof(buf), "your time:--.--");
     }
     else
     {
@@ -946,7 +946,7 @@ static void printRoundScoreAt(int16_t x, int16_t y)
             secs = 999U;
             hundredths = 99U;
         }
-        snprintf(buf, sizeof(buf), "Time:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
+        snprintf(buf, sizeof(buf), "your time:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
     }
 
     int16_t centeredX = calculateCenteredTextX(buf, x);
