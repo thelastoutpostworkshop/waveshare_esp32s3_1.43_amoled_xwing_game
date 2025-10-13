@@ -28,6 +28,7 @@
 #define I2C_ADDR_FT3168 0x38
 #define PIN_NUM_TOUCH_SCL 48
 #define PIN_NUM_TOUCH_SDA 47
+#define PIN_NUM_BOOT 0
 #define I2C_PORT I2C_NUM_0
 #define I2C_FREQUENCY (300 * 1000)
 

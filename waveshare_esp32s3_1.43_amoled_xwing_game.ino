@@ -76,6 +76,11 @@ static void playIntroAnimation();
 static void waitForTouchRelease();
 static void printBestTimeAt(int16_t x, int16_t y, bool highlightNewBest = false);
 static void printRoundScoreAt(int16_t x, int16_t y);
+static bool bootButtonPressed();
+static void showHighScoreScreen(bool cleared);
+static void enterHighScoreScreen();
+static void updateHighScoreScreen(bool bootPressed);
+static void exitHighScoreScreen();
 static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY, bool highlightNewBest);
 static void playGameOverAnimation();
 static void playYouWinAnimation();
@@ -167,6 +172,10 @@ static volatile bool g_touchTriggered = false;
 static volatile uint16_t g_touchStartX = 0;
 static volatile uint16_t g_touchStartY = 0;
 static bool g_pendingWin = false;
+static bool g_highScoreScreenActive = false;
+static bool g_highScoreScreenCleared = false;
+static bool g_highScorePausedTimer = false;
+static int g_bootButtonLastLevel = HIGH;
 
 static float g_spritePosX = 0.0f;
 static float g_spritePosY = 0.0f;
@@ -190,6 +199,12 @@ void setup()
             delay(1000);
         }
     }
+
+    pinMode(PIN_NUM_BOOT, INPUT_PULLUP);
+    g_bootButtonLastLevel = digitalRead(PIN_NUM_BOOT);
+    g_highScoreScreenActive = false;
+    g_highScoreScreenCleared = false;
+    g_highScorePausedTimer = false;
 
     if (g_nvsPrefs.begin(NVS_NAMESPACE, false))
     {
@@ -317,6 +332,24 @@ void setup()
 
 void loop()
 {
+    bool bootPressed = bootButtonPressed();
+
+    if (!g_highScoreScreenActive && bootPressed)
+    {
+        enterHighScoreScreen();
+        bootPressed = false;
+    }
+
+    if (g_highScoreScreenActive)
+    {
+        updateHighScoreScreen(bootPressed);
+        if (g_highScoreScreenActive)
+        {
+            delay(16);
+            return;
+        }
+    }
+
     if (!g_framebuffersReady || !g_spriteReady)
     {
         delay(50);
@@ -923,6 +956,129 @@ static void printRoundScoreAt(int16_t x, int16_t y)
     g_display->flush();
 }
 
+static bool bootButtonPressed()
+{
+    int level = digitalRead(PIN_NUM_BOOT);
+    bool pressed = (g_bootButtonLastLevel == HIGH && level == LOW);
+    g_bootButtonLastLevel = level;
+    return pressed;
+}
+
+static void showHighScoreScreen(bool cleared)
+{
+    if (!g_display)
+        return;
+
+    g_display->fillScreen(COLOR_BLACK);
+    g_display->setFont(&square_sans_serif_717pt7b);
+    g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
+
+    const char *title = "High Score";
+    g_display->setCursor(calculateCenteredTextX(title, 0), 150);
+    g_display->print(title);
+
+    char scoreBuf[32];
+    if (g_bestRoundTimeMs == 0)
+    {
+        snprintf(scoreBuf, sizeof(scoreBuf), "Best Score:--.--");
+    }
+    else
+    {
+        uint32_t secs = g_bestRoundTimeMs / 1000U;
+        uint32_t hundredths = (g_bestRoundTimeMs % 1000U) / 10U;
+        if (secs > 999U)
+        {
+            secs = 999U;
+            hundredths = 99U;
+        }
+        snprintf(scoreBuf, sizeof(scoreBuf), "Best Score:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
+    }
+    g_display->setCursor(calculateCenteredTextX(scoreBuf, 0), 210);
+    g_display->print(scoreBuf);
+
+    if (cleared)
+    {
+        const char *clearedMsg = "High score cleared";
+        g_display->setTextColor(COLOR_GREEN, COLOR_BLACK);
+        g_display->setCursor(calculateCenteredTextX(clearedMsg, 0), 260);
+        g_display->print(clearedMsg);
+        g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
+    }
+
+    const char *clearInstr = "BOOT: Clear";
+    g_display->setCursor(calculateCenteredTextX(clearInstr, 0), 300);
+    g_display->print(clearInstr);
+
+    const char *exitInstr = "Tap to exit";
+    g_display->setCursor(calculateCenteredTextX(exitInstr, 0), 340);
+    g_display->print(exitInstr);
+
+    g_display->flush();
+}
+
+static void enterHighScoreScreen()
+{
+    g_highScoreScreenActive = true;
+    g_highScoreScreenCleared = false;
+    if (!g_roundTimerPaused)
+    {
+        beginRoundTimerPause();
+        g_highScorePausedTimer = true;
+    }
+    else
+    {
+        g_highScorePausedTimer = false;
+    }
+    g_touchTriggered = false;
+    showHighScoreScreen(false);
+}
+
+static void exitHighScoreScreen()
+{
+    if (g_highScorePausedTimer && g_roundTimerPaused)
+    {
+        endRoundTimerPause();
+    }
+    g_highScorePausedTimer = false;
+    g_highScoreScreenActive = false;
+    g_highScoreScreenCleared = false;
+    g_touchStartX = 0;
+    g_touchStartY = 0;
+    waitForTouchRelease();
+    if (g_framebuffersReady)
+    {
+        renderFrame();
+    }
+}
+
+static void updateHighScoreScreen(bool bootPressed)
+{
+    if (bootPressed)
+    {
+        if (!g_highScoreScreenCleared)
+        {
+            g_bestRoundTimeMs = 0;
+            g_lastRoundTimeMs = 0;
+            g_lastRoundSetNewBest = false;
+            if (g_nvsReady)
+            {
+                size_t written = g_nvsPrefs.putUInt(NVS_BEST_MS_KEY, 0);
+                if (written == 0)
+                {
+                    Serial.println("WARNING: Failed to clear best score in NVS");
+                }
+            }
+            g_highScoreScreenCleared = true;
+        }
+        showHighScoreScreen(true);
+    }
+
+    if (g_touchTriggered)
+    {
+        g_touchTriggered = false;
+        exitHighScoreScreen();
+    }
+}
 static void waitForTouchRelease()
 {
     while (touchX != 0 || touchY != 0)
