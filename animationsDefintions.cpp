@@ -107,3 +107,22 @@ const JpegAnimationFrame g_blinkFrames[kBlinkFrameCount] = {
     {blinks_00012, sizeof(blinks_00012)},
     {blinks_00013, sizeof(blinks_00013)},
     {blinks_00014, sizeof(blinks_00014)}};
+
+const JpegAnimationFrame g_medalFrames[kMedalFrameCount] = {
+    {medal_00000, sizeof(medal_00000)},
+    {medal_00001, sizeof(medal_00001)},
+    {medal_00002, sizeof(medal_00002)},
+    {medal_00003, sizeof(medal_00003)},
+    {medal_00004, sizeof(medal_00004)},
+    {medal_00005, sizeof(medal_00005)},
+    {medal_00006, sizeof(medal_00006)},
+    {medal_00007, sizeof(medal_00007)},
+    {medal_00008, sizeof(medal_00008)},
+    {medal_00009, sizeof(medal_00009)},
+    {medal_00010, sizeof(medal_00010)},
+    {medal_00011, sizeof(medal_00011)},
+    {medal_00012, sizeof(medal_00012)},
+    {medal_00013, sizeof(medal_00013)},
+    {medal_00014, sizeof(medal_00014)},
+    {medal_00015, sizeof(medal_00015)},
+    {medal_00016, sizeof(medal_00016)}};

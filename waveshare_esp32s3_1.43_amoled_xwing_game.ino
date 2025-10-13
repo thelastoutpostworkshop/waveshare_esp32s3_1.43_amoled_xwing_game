@@ -81,7 +81,15 @@ static void showHighScoreScreen(bool cleared);
 static void enterHighScoreScreen();
 static void updateHighScoreScreen(bool bootPressed);
 static void exitHighScoreScreen();
-static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY, bool highlightNewBest);
+static void playBlockingAnimation(JpegAnimation &animation,
+                                  int16_t bestTextX,
+                                  int16_t bestTextY,
+                                  int16_t scoreTextX,
+                                  int16_t scoreTextY,
+                                  bool highlightNewBest,
+                                  JpegAnimation *loopAnimation = nullptr,
+                                  int16_t loopX = 0,
+                                  int16_t loopY = 0);
 static void playGameOverAnimation();
 static void playYouWinAnimation();
 static void startGameRound();
@@ -118,6 +126,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 #define YOU_WIN_BEST_TEXT_POS_Y 290
 #define YOU_WIN_SCORE_TEXT_POS_X 20
 #define YOU_WIN_SCORE_TEXT_POS_Y 330
+#define MEDAL_ANIM_POS_X 160
+#define MEDAL_ANIM_POS_Y 140
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
@@ -147,6 +157,7 @@ static JpegAnimation g_blinkAnimation(g_blinkFrames, kBlinkFrameCount, decodeJpe
 static JpegAnimation g_gameOverAnimation(g_gameOverFrames, kGameOverFrameCount, decodeJpegToBuffer);
 static JpegAnimation g_youWinAnimation(g_youWinFrames, kYouWinFrameCount, decodeJpegToBuffer);
 static JpegAnimation g_explosionAnimation(g_explosionFrames, kExplosionFrameCount, decodeJpegToBuffer);
+static JpegAnimation g_medalAnimation(g_medalFrames, kMedalFrameCount, decodeJpegToBuffer);
 
 static bool g_gameActive = false;
 static uint32_t g_roundStartMs = 0;
@@ -935,7 +946,7 @@ static void printRoundScoreAt(int16_t x, int16_t y)
     char buf[32];
     if (g_lastRoundTimeMs == 0)
     {
-        snprintf(buf, sizeof(buf), "your time:--.--");
+        snprintf(buf, sizeof(buf), "Your Time:--.--");
     }
     else
     {
@@ -946,7 +957,7 @@ static void printRoundScoreAt(int16_t x, int16_t y)
             secs = 999U;
             hundredths = 99U;
         }
-        snprintf(buf, sizeof(buf), "your time:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
+        snprintf(buf, sizeof(buf), "Your Time:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
     }
 
     int16_t centeredX = calculateCenteredTextX(buf, x);
@@ -1086,7 +1097,15 @@ static void waitForTouchRelease()
     }
 }
 
-static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, int16_t bestTextY, int16_t scoreTextX, int16_t scoreTextY, bool highlightNewBest)
+static void playBlockingAnimation(JpegAnimation &animation,
+                                  int16_t bestTextX,
+                                  int16_t bestTextY,
+                                  int16_t scoreTextX,
+                                  int16_t scoreTextY,
+                                  bool highlightNewBest,
+                                  JpegAnimation *loopAnimation,
+                                  int16_t loopX,
+                                  int16_t loopY)
 {
     if (!g_framebuffersReady || !g_display)
     {
@@ -1120,6 +1139,10 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
     bool animationFinished = false;
     bool bestPrinted = false;
     bool scorePrinted = false;
+    bool loopStarted = false;
+    int loopLastFrame = -1;
+    uint16_t *loopBaseBuffer = nullptr;
+    bool loopBaseCaptured = false;
 
     while (true)
     {
@@ -1140,6 +1163,19 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
             if (!animation.isActive())
             {
                 animationFinished = true;
+                if (loopAnimation && !loopBaseCaptured)
+                {
+                    if (g_framebufferBytes)
+                    {
+                        uint16_t *candidate = g_frameBuffers[1 - g_frontBufferIndex];
+                        if (candidate && candidate != buffer)
+                        {
+                            memcpy(candidate, buffer, g_framebufferBytes);
+                            loopBaseBuffer = candidate;
+                        }
+                    }
+                    loopBaseCaptured = true;
+                }
             }
         }
 
@@ -1154,6 +1190,42 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
             {
                 printRoundScoreAt(scoreTextX, scoreTextY);
                 scorePrinted = true;
+            }
+        }
+
+        if (animationFinished && loopAnimation)
+        {
+            if (!loopStarted)
+            {
+                loopAnimation->stop();
+                loopAnimation->start(loopX, loopY);
+                loopStarted = true;
+                loopLastFrame = -1;
+            }
+            else if (!loopAnimation->isActive())
+            {
+                loopAnimation->start(loopX, loopY);
+                loopLastFrame = -1;
+            }
+
+            loopAnimation->update();
+            int loopFrame = loopAnimation->currentFrame();
+            if (loopFrame != loopLastFrame)
+            {
+                if (loopBaseBuffer && buffer && g_framebufferBytes)
+                {
+                    memcpy(buffer, loopBaseBuffer, g_framebufferBytes);
+                }
+                if (loopAnimation->render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
+                {
+                    g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                    g_display->flush();
+                    if (bestPrinted)
+                        printBestTimeAt(bestTextX, bestTextY, highlightNewBest);
+                    if (scorePrinted)
+                        printRoundScoreAt(scoreTextX, scoreTextY);
+                }
+                loopLastFrame = loopFrame;
             }
         }
 
@@ -1195,6 +1267,10 @@ static void playBlockingAnimation(JpegAnimation &animation, int16_t bestTextX, i
     g_touchStartX = 0;
     g_touchStartY = 0;
     animation.stop();
+    if (loopAnimation)
+    {
+        loopAnimation->stop();
+    }
     g_frontBufferIndex = 0;
 }
 
@@ -1215,12 +1291,16 @@ static void playYouWinAnimation()
                           YOU_WIN_BEST_TEXT_POS_Y,
                           YOU_WIN_SCORE_TEXT_POS_X,
                           YOU_WIN_SCORE_TEXT_POS_Y,
-                          true);
+                          true,
+                          &g_medalAnimation,
+                          MEDAL_ANIM_POS_X,
+                          MEDAL_ANIM_POS_Y);
 }
 
 static void startGameRound()
 {
     g_explosionAnimation.stop();
+    g_medalAnimation.stop();
     resetRoundTimerPause();
     g_roundHits = 0;
     g_roundStartMs = millis();
