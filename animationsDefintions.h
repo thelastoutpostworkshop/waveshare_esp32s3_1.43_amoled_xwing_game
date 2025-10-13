@@ -6,7 +6,7 @@
 
 constexpr int kExplosionFrameCount = 10;
 constexpr int kIntroFrameCount = 30;
-constexpr int kGameOverFrameCount = 60;
+constexpr int kGameOverFrameCount = 24;
 constexpr int kYouWinFrameCount = 17;
 constexpr int kBlinkFrameCount = 30;
 
