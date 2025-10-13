@@ -690,7 +690,6 @@ static void playIntroAnimation()
                 if (g_blinkAnimation.render(buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 {
                     g_display->draw16bitBeRGBBitmap(0, 0, buffer, DISPLAY_WIDTH, DISPLAY_HEIGHT);
-                    g_display->flush();
                     printBestTimeAt(INTRO_BEST_TEXT_POS_X, INTRO_BEST_TEXT_POS_Y);
                 }
                 lastBlinkFrame = blinkFrame;
