@@ -83,6 +83,7 @@ static void beginRoundTimerPause();
 static void endRoundTimerPause();
 static void resetRoundTimerPause();
 static uint32_t getRoundElapsedMs();
+static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX = 0);
 static void updateSpritePosition();
 static void renderFrame();
 static void drawHud();
@@ -667,6 +668,31 @@ static uint32_t getRoundElapsedMs()
     return (rawElapsed >= paused) ? (rawElapsed - paused) : 0;
 }
 
+static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX)
+{
+    if (!g_display || !text)
+        return fallbackX;
+
+    int16_t boundsX = 0;
+    int16_t boundsY = 0;
+    uint16_t boundsW = 0;
+    uint16_t boundsH = 0;
+    g_display->getTextBounds(text, 0, 0, &boundsX, &boundsY, &boundsW, &boundsH);
+
+    if (boundsW == 0)
+        return fallbackX;
+
+    int32_t centeredX = ((int32_t)DISPLAY_WIDTH - (int32_t)boundsW) / 2 - boundsX;
+    if (centeredX < 0)
+        centeredX = 0;
+    if (centeredX + (int32_t)boundsW > DISPLAY_WIDTH)
+        centeredX = DISPLAY_WIDTH - boundsW;
+    if (centeredX < 0)
+        centeredX = 0;
+
+    return static_cast<int16_t>(centeredX);
+}
+
 static void playIntroAnimation()
 {
     if (!g_framebuffersReady || !g_display)
@@ -780,7 +806,6 @@ static void printBestTimeAt(int16_t x, int16_t y)
 
     g_display->setFont(&square_sans_serif_717pt7b);
     g_display->setTextColor(COLOR_WHITE, COLOR_BLACK);
-    g_display->setCursor(x, y);
 
     char buf[32];
     if (g_bestRoundTimeMs == 0)
@@ -800,6 +825,8 @@ static void printBestTimeAt(int16_t x, int16_t y)
         snprintf(buf, sizeof(buf), "Best Score:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
     }
 
+    int16_t centeredX = calculateCenteredTextX(buf, x);
+    g_display->setCursor(centeredX, y);
     g_display->print(buf);
     g_display->flush();
 }
