@@ -201,6 +201,7 @@ static float g_spriteVelY = 0.0f;
 static int g_spriteDrawX = 0;
 static int g_spriteDrawY = 0;
 
+// Initializes hardware, storage, display, and worker tasks before gameplay begins.
 void setup()
 {
     Serial.begin(115200);
@@ -316,7 +317,7 @@ void setup()
     }
 }
 
-// Main loop for the game
+// Drives the gameplay state machine, handling input, timing, and transitions.
 void loop()
 {
     bool bootPressed = bootButtonPressed();
@@ -441,11 +442,13 @@ void loop()
     delay(16);
 }
 
+// Converts a little-endian RGB565 color to the big-endian layout expected by the panel.
 static inline uint16_t toBE565(uint16_t color)
 {
     return (uint16_t)((color << 8) | (color >> 8));
 }
 
+// Clears an entire framebuffer with a uniform big-endian RGB565 color.
 static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
 {
     if (!buffer)
@@ -467,6 +470,7 @@ static void clearBuffer(uint16_t *buffer, uint16_t colorBE)
     }
 }
 
+// Determines whether a sprite pixel should be treated as transparent via brightness keying.
 static inline bool isSpriteTransparent(uint16_t bePixel)
 {
     uint16_t native = (uint16_t)((bePixel << 8) | (bePixel >> 8));
@@ -477,6 +481,7 @@ static inline bool isSpriteTransparent(uint16_t bePixel)
     return brightness <= SPRITE_COLORKEY_BRIGHTNESS_THRESHOLD;
 }
 
+// Decodes a JPEG image directly into a framebuffer region using the shared JPEG context.
 static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, int x, int y, const uint8_t *data, size_t size, int decodeOptions)
 {
     if (!buffer || pitch <= 0 || bufferHeight <= 0 || !data || size == 0)
@@ -518,6 +523,7 @@ static bool decodeJpegToBuffer(uint16_t *buffer, int pitch, int bufferHeight, in
     return true;
 }
 
+// Loads a JPEG sprite into PSRAM and returns its pixels plus dimensions.
 static bool decodeSprite(const uint8_t *data, size_t size, uint16_t **outPixels, int *outWidth, int *outHeight)
 {
     if (!outPixels)
@@ -588,6 +594,7 @@ static bool decodeSprite(const uint8_t *data, size_t size, uint16_t **outPixels,
     return true;
 }
 
+// Allocates the double framebuffers in PSRAM and fills them with the base color.
 static bool initFramebuffers()
 {
     const size_t bytes = (size_t)DISPLAY_WIDTH * (size_t)DISPLAY_HEIGHT * sizeof(uint16_t);
@@ -618,6 +625,7 @@ static bool initFramebuffers()
     return true;
 }
 
+// Renders a sprite onto the destination buffer while clipping to the display bounds.
 static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *sprite, int spriteW, int spriteH)
 {
     if (!dst || !sprite || spriteW <= 0 || spriteH <= 0)
@@ -651,6 +659,7 @@ static void blitSprite(uint16_t *dst, int pitch, int x, int y, const uint16_t *s
     }
 }
 
+// Decodes and stores the static background so subsequent frames can reuse it.
 static bool buildStaticBackground()
 {
     if (!g_framebuffersReady || g_framebufferBytes == 0)
@@ -689,6 +698,7 @@ static bool buildStaticBackground()
     return ok;
 }
 
+// Converts raw sensor magnitudes into a clamped HUD-friendly integer value.
 static int formatSensorDisplayValue(float value)
 {
     float scaled = fabsf(value) * 100.0f;
@@ -698,6 +708,7 @@ static int formatSensorDisplayValue(float value)
     return display;
 }
 
+// Marks the round timer as paused so elapsed time stops advancing.
 static void beginRoundTimerPause()
 {
     if (!g_roundTimerPaused)
@@ -707,6 +718,7 @@ static void beginRoundTimerPause()
     }
 }
 
+// Resumes the round timer and records how long it remained paused.
 static void endRoundTimerPause()
 {
     if (g_roundTimerPaused)
@@ -718,6 +730,7 @@ static void endRoundTimerPause()
     }
 }
 
+// Clears any pause bookkeeping so the timer runs from the current moment.
 static void resetRoundTimerPause()
 {
     g_roundTimerPaused = false;
@@ -725,6 +738,7 @@ static void resetRoundTimerPause()
     g_roundPauseAccumulatedMs = 0;
 }
 
+// Computes the active round duration adjusted for any pauses.
 static uint32_t getRoundElapsedMs()
 {
     uint32_t now = millis();
@@ -738,6 +752,7 @@ static uint32_t getRoundElapsedMs()
     return (rawElapsed >= paused) ? (rawElapsed - paused) : 0;
 }
 
+// Finds an X coordinate that centers the provided text on the display.
 static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX)
 {
     if (!g_display || !text)
@@ -763,6 +778,7 @@ static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX)
     return static_cast<int16_t>(centeredX);
 }
 
+// Plays the intro animation loop and waits for the player to start the game.
 static void playIntroAnimation()
 {
     if (!g_framebuffersReady || !g_display)
@@ -869,6 +885,7 @@ static void playIntroAnimation()
     g_touchStartY = 0;
 }
 
+// Renders the best-score banner at the requested location.
 static void printBestTimeAt(int16_t x, int16_t y, bool highlightNewBest)
 {
     if (!g_display)
@@ -911,6 +928,7 @@ static void printBestTimeAt(int16_t x, int16_t y, bool highlightNewBest)
     }
 }
 
+// Renders the player's most recent round time at the requested location.
 static void printRoundScoreAt(int16_t x, int16_t y)
 {
     if (!g_display)
@@ -942,6 +960,7 @@ static void printRoundScoreAt(int16_t x, int16_t y)
     g_display->flush();
 }
 
+// Composes the best-score and round-time overlay onto the animation buffer.
 static void drawVictoryTextOverlay(uint16_t *buffer,
                                    int16_t bestX,
                                    int16_t bestY,
@@ -1022,7 +1041,7 @@ static void drawVictoryTextOverlay(uint16_t *buffer,
 
     blitCanvasToBuffer(g_textCanvas, buffer, 0x0000);
 }
-
+// Detects a newly pressed BOOT button edge for clearing the high score.
 static bool bootButtonPressed()
 {
     int level = digitalRead(PIN_NUM_BOOT);
@@ -1031,6 +1050,7 @@ static bool bootButtonPressed()
     return pressed;
 }
 
+// Renders the high score overlay and optional cleared notification.
 static void showHighScoreScreen(bool cleared)
 {
     if (!g_display)
@@ -1083,6 +1103,7 @@ static void showHighScoreScreen(bool cleared)
     g_display->flush();
 }
 
+// Enters the high score view and pauses gameplay interactions.
 static void enterHighScoreScreen()
 {
     g_highScoreScreenActive = true;
@@ -1100,6 +1121,7 @@ static void enterHighScoreScreen()
     showHighScoreScreen(false);
 }
 
+// Dismisses the high score view and resumes the round timer if it was paused here.
 static void exitHighScoreScreen()
 {
     if (g_highScorePausedTimer && g_roundTimerPaused)
@@ -1118,6 +1140,7 @@ static void exitHighScoreScreen()
     }
 }
 
+// Processes input while the high score screen is active, including clearing scores.
 static void updateHighScoreScreen(bool bootPressed)
 {
     if (bootPressed)
@@ -1146,6 +1169,8 @@ static void updateHighScoreScreen(bool bootPressed)
         exitHighScoreScreen();
     }
 }
+
+// Waits until the user lifts their finger so subsequent taps are distinct.
 static void waitForTouchRelease()
 {
     while (touchX != 0 || touchY != 0)
@@ -1154,6 +1179,7 @@ static void waitForTouchRelease()
     }
 }
 
+// Plays a blocking animation, overlays score text, and waits for player acknowledgement.
 static void playBlockingAnimation(JpegAnimation &animation,
                                   int16_t bestTextX,
                                   int16_t bestTextY,
@@ -1384,6 +1410,7 @@ static void playBlockingAnimation(JpegAnimation &animation,
     g_frontBufferIndex = 0;
 }
 
+// Shows the game-over animation sequence before restarting the round.
 static void playGameOverAnimation()
 {
     playBlockingAnimation(g_gameOverAnimation,
@@ -1394,6 +1421,7 @@ static void playGameOverAnimation()
                           false);
 }
 
+// Shows the victory animation, optional medal, and waits for the next round start.
 static void playYouWinAnimation()
 {
     playBlockingAnimation(g_youWinAnimation,
@@ -1407,6 +1435,7 @@ static void playYouWinAnimation()
                           MEDAL_ANIM_POS_Y);
 }
 
+// Resets round state so the player can start a fresh attempt.
 static void startGameRound()
 {
     g_explosionAnimation.stop();
@@ -1421,6 +1450,7 @@ static void startGameRound()
     g_pendingWin = false;
 }
 
+// Loads both X-Wing sprite variants into PSRAM and primes sprite state.
 static bool loadXWingSprite()
 {
     if (g_xWingBoldSprite)
@@ -1464,6 +1494,7 @@ static bool loadXWingSprite()
     return true;
 }
 
+// Integrates IMU readings to update and clamp the X-Wing position.
 static void updateSpritePosition()
 {
     if (!g_spriteReady || g_xWingWidth <= 0 || g_xWingHeight <= 0)
@@ -1521,6 +1552,7 @@ static void updateSpritePosition()
     g_spriteDrawY = (int)(g_spritePosY + 0.5f);
 }
 
+// Refreshes the HUD canvas with score, sensor data, and remaining time.
 static void drawHud()
 {
     if (!g_textCanvas.getFramebuffer())
@@ -1558,6 +1590,7 @@ static void drawHud()
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
 }
 
+// Copies the canvas into the framebuffer while skipping the provided transparent color.
 static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t transparentColor)
 {
     if (!dest)
@@ -1586,6 +1619,7 @@ static void blitCanvasToBuffer(Arduino_Canvas &canvas, uint16_t *dest, uint16_t 
     }
 }
 
+// Builds the next frame by combining background, sprite or effects, and the HUD.
 static void renderFrame()
 {
     if (!g_framebuffersReady)
@@ -1665,6 +1699,7 @@ static void renderFrame()
     }
 }
 
+// Decodes a JPEG asset from flash and renders it at the given screen coordinates.
 static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decodeOptions)
 {
     if (!data || size == 0)
@@ -1705,7 +1740,7 @@ static bool showJpegAt(int x, int y, const uint8_t *data, size_t size, int decod
     return decoded;
 }
 
-// Callback function to draw a JPEG
+// JPEG decoder callback that either pushes pixels to the panel or to an off-screen buffer.
 int jpegDrawCallback(JPEGDRAW *pDraw)
 {
 
@@ -1762,7 +1797,8 @@ int jpegDrawCallback(JPEGDRAW *pDraw)
 
     return 0;
 }
-// Task to read the values of QMI8658 6-axis IMU (3-axis accelerometer and 3-axis gyroscope)
+
+// FreeRTOS task that continually samples the IMU and updates the shared sensor data.
 static void imu_task(void *arg)
 {
     for (;;)
@@ -1783,7 +1819,7 @@ static void imu_task(void *arg)
     }
 }
 
-// Task to read touche events
+// FreeRTOS task that captures touch presses and latches the initial tap coordinates.
 static void touchTask(void *pvParameter)
 {
     (void)pvParameter;
@@ -1820,6 +1856,7 @@ static void touchTask(void *pvParameter)
     }
 }
 
+// Maps JPEGDEC error codes to descriptive strings.
 static const char *jpegErrorToString(int error)
 {
     switch (error)
@@ -1841,6 +1878,7 @@ static const char *jpegErrorToString(int error)
     }
 }
 
+// Logs a formatted JPEG decoder error message with human-readable context.
 static void printJpegError(const char *context, int error)
 {
     const char *description = jpegErrorToString(error);
