@@ -1,3 +1,5 @@
+// Animations and their frames definition
+
 #include "animationsDefintions.h"
 
 #include "images/image_assets.h"

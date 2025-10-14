@@ -1,5 +1,5 @@
 //
-// target
+// target background image
 // Data size = 51406 bytes
 //
 // JFIF, Compression=JPEG, Size: 466 x 466, 24-Bpp

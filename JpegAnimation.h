@@ -1,4 +1,3 @@
-// JpegAnimation.h
 // Reusable helper to play JPEG frame sequences on RGB565 buffers.
 #pragma once
 

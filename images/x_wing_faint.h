@@ -1,5 +1,5 @@
 //
-// x-wing_faint
+// x-wing in faint red color when it is off the target area
 // Data size = 18603 bytes
 //
 // JFIF, Compression=JPEG, Size: 250 x 94, 24-Bpp

@@ -1,3 +1,5 @@
+// Class for playing animations consisting of JPG images
+
 #include "JpegAnimation.h"
 
 #include <Arduino.h>

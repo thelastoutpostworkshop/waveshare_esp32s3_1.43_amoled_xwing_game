@@ -1,4 +1,3 @@
-// CanvasTypes.h
 // Custom canvas and JPEG rendering helpers shared across the project.
 #pragma once
 

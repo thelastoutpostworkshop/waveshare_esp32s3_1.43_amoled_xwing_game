@@ -1,4 +1,3 @@
-// animationsDefintions.h
 // Animation frame declarations shared across the project.
 #pragma once
 

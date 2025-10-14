@@ -1,5 +1,5 @@
 //
-// x-wing_small
+// x-wing in bold red when it reaches the target area
 // Data size = 25181 bytes
 //
 // JFIF, Compression=JPEG, Size: 250 x 94, 24-Bpp

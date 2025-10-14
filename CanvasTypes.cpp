@@ -1,3 +1,5 @@
+// Custom canvas and JPEG rendering helpers shared across the project.
+
 #include "CanvasTypes.h"
 
 #include <cstring>
