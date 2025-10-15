@@ -1121,12 +1121,13 @@ static void enterHighScoreScreen()
     showHighScoreScreen(false);
 }
 
-// Dismisses the high score view and resumes the round timer if it was paused here.
+// Dismisses the high score view and restarts the round timer if it was paused here.
 static void exitHighScoreScreen()
 {
-    if (g_highScorePausedTimer && g_roundTimerPaused)
+    if (g_highScorePausedTimer)
     {
-        endRoundTimerPause();
+        resetRoundTimerPause();
+        g_roundStartMs = millis(); // restart the round timer after leaving the high score screen
     }
     g_highScorePausedTimer = false;
     g_highScoreScreenActive = false;
