@@ -122,6 +122,9 @@ volatile ImuData g_imu;
 #define SENSOR_POS_Y 220
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
+#define TARGET_PROMPT_POS_X 180            // Horizontal position for the target prompt
+#define TARGET_PROMPT_POS_Y 220            // Vertical baseline for the target prompt
+#define TARGET_FLASH_INTERVAL_MS 150       // Blink speed for the target prompt in ms
 #define INTRO_BEST_TEXT_POS_X 20
 #define INTRO_BEST_TEXT_POS_Y 305
 #define GAME_OVER_BEST_TEXT_POS_X 20
@@ -1589,6 +1592,17 @@ static void drawHud()
     g_textCanvas.setCursor(TIMER_POS_X, TIMER_POS_Y);
     g_textCanvas.print(timerText);
     g_textCanvas.setTextColor(COLOR_WHITE, COLOR_BLACK);
+
+    if (g_shipInTarget)
+    {
+        uint32_t flashPhase = millis() / TARGET_FLASH_INTERVAL_MS;
+        if ((flashPhase & 0x1U) == 0U)
+        {
+            g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
+            g_textCanvas.setCursor(TARGET_PROMPT_POS_X, TARGET_PROMPT_POS_Y);
+            g_textCanvas.print("'AZ");
+        }
+    }
 }
 
 // Copies the canvas into the framebuffer while skipping the provided transparent color.
