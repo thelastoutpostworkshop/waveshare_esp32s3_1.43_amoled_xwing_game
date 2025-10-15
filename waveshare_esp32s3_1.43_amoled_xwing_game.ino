@@ -97,6 +97,12 @@ int jpegDrawCallback(JPEGDRAW *pDraw);
 
 // Game global defines & variables, no need to change this, unless you redesign the game
 //
+static constexpr uint16_t COLOR_BLACK = 0x0000;
+static constexpr uint16_t COLOR_WHITE = 0xFFFF;
+static constexpr uint16_t COLOR_RED = 0xF800;
+static constexpr uint16_t COLOR_GREEN = 0x07E0;
+static constexpr uint16_t COLOR_ORANGE = 0xfc41;
+
 JPEGDEC jpeg;
 
 // Touch global variables
@@ -123,9 +129,9 @@ volatile ImuData g_imu;
 #define SENSOR_POS_Y 220
 #define TIMER_POS_X 280
 #define TIMER_POS_Y 370
-#define TARGET_PROMPT_POS_X 0            // Horizontal position for the target prompt
-#define TARGET_PROMPT_POS_Y 220            // Vertical baseline for the target prompt
-#define TARGET_FLASH_INTERVAL_MS 50       // Blink speed for the target prompt in ms
+#define TARGET_PROMPT_POS_X 0       // Horizontal position for the target prompt
+#define TARGET_PROMPT_POS_Y 220     // Vertical baseline for the target prompt
+#define TARGET_FLASH_INTERVAL_MS 25 // Blink speed for the target prompt in ms
 #define INTRO_BEST_TEXT_POS_X 20
 #define INTRO_BEST_TEXT_POS_Y 305
 #define GAME_OVER_BEST_TEXT_POS_X 20
@@ -144,10 +150,6 @@ static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 
 static Arduino_DataBus *g_displayBus = nullptr;
 static Arduino_CO5300 *g_outputDisplay = nullptr;
 static Arduino_Canvas *g_display = nullptr;
-static constexpr uint16_t COLOR_BLACK = 0x0000;
-static constexpr uint16_t COLOR_WHITE = 0xFFFF;
-static constexpr uint16_t COLOR_RED = 0xF800;
-static constexpr uint16_t COLOR_GREEN = 0x07E0;
 
 static uint16_t *g_frameBuffers[2] = {nullptr, nullptr};
 static int g_frontBufferIndex = 0;
@@ -1599,7 +1601,8 @@ static void drawHud()
         uint32_t flashPhase = millis() / TARGET_FLASH_INTERVAL_MS;
         if ((flashPhase & 0x1U) == 0U)
         {
-            g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
+            g_textCanvas.setFont(&Aurebesh_Bold20pt7b);
+            g_textCanvas.setTextColor(COLOR_ORANGE, COLOR_BLACK);
             g_textCanvas.setCursor(TARGET_PROMPT_POS_X, TARGET_PROMPT_POS_Y);
             g_textCanvas.print("BC");
         }
