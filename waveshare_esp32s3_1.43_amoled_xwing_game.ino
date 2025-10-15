@@ -123,27 +123,27 @@ volatile ImuData g_imu;
 #define SCORE_POS_X 70                         // Horizontal position for score text
 #define SCORE_POS_Y 370                        // Vertical baseline for score text
 #define XWING_VISIBLE_MARGIN 10                // Pixels guaranteed to remain on-screen when drifting off the edge
-#define BLINK_INTRO_POS_X 110
-#define BLINK_INTRO_POS_Y 375
-#define SENSOR_POS_X 360
-#define SENSOR_POS_Y 220
-#define TIMER_POS_X 280
-#define TIMER_POS_Y 370
-#define TARGET_PROMPT_POS_X 0       // Horizontal position for the target prompt
-#define TARGET_PROMPT_POS_Y 220     // Vertical baseline for the target prompt
-#define TARGET_FLASH_INTERVAL_MS 25 // Blink speed for the target prompt in ms
-#define INTRO_BEST_TEXT_POS_X 20
-#define INTRO_BEST_TEXT_POS_Y 305
-#define GAME_OVER_BEST_TEXT_POS_X 20
-#define GAME_OVER_BEST_TEXT_POS_Y 300
-#define GAME_OVER_SCORE_TEXT_POS_X 20
-#define GAME_OVER_SCORE_TEXT_POS_Y 330
-#define YOU_WIN_BEST_TEXT_POS_X 20
-#define YOU_WIN_BEST_TEXT_POS_Y 270
-#define YOU_WIN_SCORE_TEXT_POS_X 20
-#define YOU_WIN_SCORE_TEXT_POS_Y 300
-#define MEDAL_ANIM_POS_X 350
-#define MEDAL_ANIM_POS_Y 230
+#define BLINK_INTRO_POS_X 110              // Intro blink animation X origin
+#define BLINK_INTRO_POS_Y 375              // Intro blink animation Y baseline
+#define SENSOR_POS_X 360                   // Sensor readout X origin
+#define SENSOR_POS_Y 220                   // Sensor readout Y baseline
+#define TIMER_POS_X 280                    // Countdown timer X origin
+#define TIMER_POS_Y 370                    // Countdown timer Y baseline
+#define TARGET_PROMPT_POS_X 0              // Horizontal position for the target prompt
+#define TARGET_PROMPT_POS_Y 220            // Vertical baseline for the target prompt
+#define TARGET_FLASH_INTERVAL_MS 25        // Blink speed for the target prompt in ms
+#define INTRO_BEST_TEXT_POS_X 20           // Intro best-time text X origin
+#define INTRO_BEST_TEXT_POS_Y 305          // Intro best-time text Y baseline
+#define GAME_OVER_BEST_TEXT_POS_X 20       // Game over best-time text X origin
+#define GAME_OVER_BEST_TEXT_POS_Y 300      // Game over best-time text Y baseline
+#define GAME_OVER_SCORE_TEXT_POS_X 20      // Game over last run text X origin
+#define GAME_OVER_SCORE_TEXT_POS_Y 330     // Game over last run text Y baseline
+#define YOU_WIN_BEST_TEXT_POS_X 20         // Victory best-time text X origin
+#define YOU_WIN_BEST_TEXT_POS_Y 270        // Victory best-time text Y baseline
+#define YOU_WIN_SCORE_TEXT_POS_X 20        // Victory last run text X origin
+#define YOU_WIN_SCORE_TEXT_POS_Y 300       // Victory last run text Y baseline
+#define MEDAL_ANIM_POS_X 350               // Medal animation X origin
+#define MEDAL_ANIM_POS_Y 230               // Medal animation Y origin
 
 static JpegRenderContext g_jpegContext = {JpegRenderMode::Panel, nullptr, 0, 0, 0, 0, 0};
 
