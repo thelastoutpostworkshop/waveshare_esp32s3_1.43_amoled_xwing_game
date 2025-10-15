@@ -16,6 +16,7 @@
 // Game assets
 #include "animationsDefintions.h"            // Animation assets
 #include "images/image_assets.h"             // Image assets
+#include "fonts/Aurebesh_Bold20pt7b.h"       // Target prompt indicator
 #include "fonts/Aurebesh_Bold25pt7b.h"       // Score and timer font
 #include "fonts/Aurebesh_Bold7pt7b.h"        // Sensor font
 #include "fonts/square_sans_serif_717pt7b.h" // Best score font
