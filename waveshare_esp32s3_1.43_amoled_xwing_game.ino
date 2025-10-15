@@ -124,7 +124,7 @@ volatile ImuData g_imu;
 #define TIMER_POS_Y 370
 #define TARGET_PROMPT_POS_X 0            // Horizontal position for the target prompt
 #define TARGET_PROMPT_POS_Y 220            // Vertical baseline for the target prompt
-#define TARGET_FLASH_INTERVAL_MS 300       // Blink speed for the target prompt in ms
+#define TARGET_FLASH_INTERVAL_MS 50       // Blink speed for the target prompt in ms
 #define INTRO_BEST_TEXT_POS_X 20
 #define INTRO_BEST_TEXT_POS_Y 305
 #define GAME_OVER_BEST_TEXT_POS_X 20
@@ -1600,7 +1600,7 @@ static void drawHud()
         {
             g_textCanvas.setFont(&Aurebesh_Bold25pt7b);
             g_textCanvas.setCursor(TARGET_PROMPT_POS_X, TARGET_PROMPT_POS_Y);
-            g_textCanvas.print("AZ");
+            g_textCanvas.print("BC");
         }
     }
 }
