@@ -88,7 +88,7 @@ static void beginRoundTimerPause();
 static void endRoundTimerPause();
 static void resetRoundTimerPause();
 static uint32_t getRoundElapsedMs();
-static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX = 0);
+static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX = 0, Arduino_GFX *target = nullptr);
 static void updateSpritePosition();
 static void renderFrame();
 static void drawHud();
@@ -758,26 +758,31 @@ static uint32_t getRoundElapsedMs()
     return (rawElapsed >= paused) ? (rawElapsed - paused) : 0;
 }
 
-// Finds an X coordinate that centers the provided text on the display.
-static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX)
+// Finds an X coordinate that centers the provided text on the display (or target canvas).
+static int16_t calculateCenteredTextX(const char *text, int16_t fallbackX, Arduino_GFX *target)
 {
-    if (!g_display || !text)
+    Arduino_GFX *gfx = target ? target : g_display;
+    if (!gfx || !text)
         return fallbackX;
 
     int16_t boundsX = 0;
     int16_t boundsY = 0;
     uint16_t boundsW = 0;
     uint16_t boundsH = 0;
-    g_display->getTextBounds(text, 0, 0, &boundsX, &boundsY, &boundsW, &boundsH);
+    gfx->getTextBounds(text, 0, 0, &boundsX, &boundsY, &boundsW, &boundsH);
 
     if (boundsW == 0)
         return fallbackX;
 
-    int32_t centeredX = ((int32_t)DISPLAY_WIDTH - (int32_t)boundsW) / 2 - boundsX;
+    int32_t areaWidth = (int32_t)gfx->width();
+    if (areaWidth <= 0)
+        return fallbackX;
+
+    int32_t centeredX = (areaWidth - (int32_t)boundsW) / 2 - boundsX;
     if (centeredX < 0)
         centeredX = 0;
-    if (centeredX + (int32_t)boundsW > DISPLAY_WIDTH)
-        centeredX = DISPLAY_WIDTH - boundsW;
+    if (centeredX + (int32_t)boundsW > areaWidth)
+        centeredX = areaWidth - boundsW;
     if (centeredX < 0)
         centeredX = 0;
 
@@ -1009,7 +1014,7 @@ static void drawVictoryTextOverlay(uint16_t *buffer,
             snprintf(buf, sizeof(buf), "Best Score:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
         }
 
-        int16_t centeredBestX = calculateCenteredTextX(buf, bestX);
+        int16_t centeredBestX = calculateCenteredTextX(buf, bestX, &g_textCanvas);
         g_textCanvas.setCursor(centeredBestX, bestY);
         g_textCanvas.print(buf);
         if (showNewBest)
@@ -1040,7 +1045,7 @@ static void drawVictoryTextOverlay(uint16_t *buffer,
             snprintf(buf, sizeof(buf), "Your Time:%lu.%02lu", (unsigned long)secs, (unsigned long)hundredths);
         }
 
-        int16_t centeredScoreX = calculateCenteredTextX(buf, scoreX);
+        int16_t centeredScoreX = calculateCenteredTextX(buf, scoreX, &g_textCanvas);
         g_textCanvas.setCursor(centeredScoreX, scoreY);
         g_textCanvas.print(buf);
     }
