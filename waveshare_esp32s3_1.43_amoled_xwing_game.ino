@@ -1604,7 +1604,7 @@ static void drawHud()
             g_textCanvas.setFont(&Aurebesh_Bold20pt7b);
             g_textCanvas.setTextColor(COLOR_ORANGE, COLOR_BLACK);
             g_textCanvas.setCursor(TARGET_PROMPT_POS_X, TARGET_PROMPT_POS_Y);
-            g_textCanvas.print("BC");
+            g_textCanvas.print("CC");
         }
     }
 }
