@@ -49,8 +49,12 @@
 #define DAMPING 0.92f        // 1.0 = X-Wing glide forever, 0.0 = X-Wing stop instantly
 #define XWING_TARGET_AREA 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
-// Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
-// You can make the game harder by choosing a mode that is unatural to you
+// Direction modes:
+// 0 = Normal
+// 1 = Invert vertical control (tilting)
+// 2 = Invert horizontal control (twisting)
+// 3 = Invert both tilting and twisting directions
+// Increase the challenge by selecting a mode that feels less natural to you.
 #define XWING_DIRECTION_MODE 2
 
 // Functions signature declaration
