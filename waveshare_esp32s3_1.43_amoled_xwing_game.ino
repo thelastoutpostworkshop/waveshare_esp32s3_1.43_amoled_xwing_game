@@ -40,8 +40,8 @@
 #define ROUND_DURATION_MS (ROUND_DURATION_SECONDS * 1000U)
 
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
-#define ACCEL_SCALE 1.5f     // Tilt acceleration scale
-#define GYRO_SCALE 0.05f     // Gyro rotation influence
+#define ACCEL_SCALE 1.5f     // Converts accelerometer tilt into lateral thrust; higher values make tilting drive faster movement
+#define GYRO_SCALE 0.05f     // Blends the gyro rotation into the controls; increase for stronger stick rotation response
 #define DAMPING 0.92f        // 1.0 = glide forever, 0.0 = stop instantly
 #define XWING_TARGET_AREA 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
