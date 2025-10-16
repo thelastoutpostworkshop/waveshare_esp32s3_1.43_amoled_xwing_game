@@ -46,7 +46,7 @@
 #define GYRO_SCALE 0.05f  // Controls how sensitive horizontal movement is to board twisting;
                           // increase to make the X-Wing move faster left and right.
 
-#define DAMPING 0.92f        // 1.0 = glide forever, 0.0 = stop instantly
+#define DAMPING 0.92f        // 1.0 = X-Wing glide forever, 0.0 = X-Wing stop instantly
 #define XWING_TARGET_AREA 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
 // Direction modes: 0 = normal, 1 = invert pitch, 2 = invert roll, 3 = invert both
