@@ -40,8 +40,8 @@
 #define ROUND_DURATION_MS (ROUND_DURATION_SECONDS * 1000U)
 
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
-#define ACCEL_SCALE 1.5f     // Converts accelerometer tilt into vertical (up & down) thrust;
-                             // higher values make tilting drive faster X-Wing movement.
+#define ACCEL_SCALE 1.5f  // Controls how sensitive vertical movement is to board tilting;
+                          // increase to make the X-Wing move faster up and down.
 
 #define GYRO_SCALE 0.05f  // Controls how sensitive horizontal movement is to board twisting;
                           // increase to make the X-Wing move faster left and right.
