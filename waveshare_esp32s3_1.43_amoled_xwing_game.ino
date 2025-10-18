@@ -41,12 +41,12 @@
 
 // Game sensitivity adjustments (lower value = easier; higher value = harder)
 #define ACCEL_SCALE 1.5f  // Controls how sensitive vertical movement is to board tilting;
-                          // increase to make the X-Wing move faster up and down.
+                          // increase to make the X-Wing move faster up and down. (practical range 0.5f-3.0f)
 
 #define GYRO_SCALE 0.05f  // Controls how sensitive horizontal movement is to board twisting;
-                          // increase to make the X-Wing move faster left and right.
+                          // increase to make the X-Wing move faster left and right. (practical range 0.02f-0.15f)
 
-#define DAMPING 0.92f        // 1.0 = X-Wing glide forever, 0.0 = X-Wing stop instantly
+#define DAMPING 0.92f        // 1.0 = X-Wing glide forever, 0.0 = X-Wing stop instantly (practical range 0.85f-0.97f)
 #define XWING_TARGET_AREA 30 // Lower = larger bullseye (easier), higher = tighter bullseye (harder)
 
 // Direction modes:
