@@ -1,4 +1,4 @@
-// Tutorial :
+// Tutorial : https://youtu.be/eDDZ7O_mwxU
 // Use board "Waveshare ESP32-S3-Touch-AMOLED-1.43" (last tested on v3.3.2)
 
 // Libraries to be installed
@@ -316,7 +316,7 @@ void setup()
         Serial.println("ERROR: Failed to load X-Wing sprite; cannot continue");
     }
 
-    Serial.println("See the tutorial: ");
+    Serial.println("See the tutorial: https://youtu.be/eDDZ7O_mwxU");
 
     playIntroAnimation();
 
